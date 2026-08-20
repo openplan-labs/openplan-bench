@@ -34,6 +34,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.ticker import MaxNLocator  # noqa: E402
 
 # --- brand tokens (openplan-labs/branding · tokens/tokens.css) --------------
 LIGHT = {
@@ -73,6 +74,13 @@ AGENT_RAMP = (
     "#8f7fae",
     "#9c7f6a",
 )
+
+#: Marker cycle, paired with the ramp. The brand rule is that no figure may
+#: distinguish its series by hue alone — the ramp is deliberately flat and
+#: cool, so with six or more planner configurations two colours will always sit
+#: close together. Shape is what survives greyscale printing and a colour-blind
+#: reader.
+MARKERS = ("o", "s", "^", "D", "v", "P", "X", "*")
 
 _FONTS = ["Libre Franklin", "Helvetica Neue", "Helvetica", "DejaVu Sans"]
 
@@ -153,6 +161,10 @@ def _series_colors(labels) -> dict[str, str]:
     return {label: AGENT_RAMP[i % len(AGENT_RAMP)] for i, label in enumerate(labels)}
 
 
+def _series_markers(labels) -> dict[str, str]:
+    return {label: MARKERS[i % len(MARKERS)] for i, label in enumerate(labels)}
+
+
 # ---------------------------------------------------------------------------
 def cactus_plot(series: dict[str, list[float]], out_dir: Path, dark: bool) -> Path:
     """Instances solved against per-instance time budget.
@@ -167,6 +179,7 @@ def cactus_plot(series: dict[str, list[float]], out_dir: Path, dark: bool) -> Pa
             _empty(ax, tokens, "No instance was solved by any configuration.")
         else:
             colors = _series_colors(series)
+            markers = _series_markers(series)
             # The configuration solving the most instances is the argument the
             # figure is making, so it gets the one warm colour.
             best = max(series, key=lambda k: (len(series[k]), -sum(series[k])))
@@ -180,13 +193,14 @@ def cactus_plot(series: dict[str, list[float]], out_dir: Path, dark: bool) -> Pa
                     label=label,
                     color=tokens["path"] if is_best else colors[label],
                     linewidth=2.4 if is_best else 1.8,
-                    marker="o",
-                    markersize=4,
+                    marker=markers[label],
+                    markersize=5 if is_best else 4,
                     zorder=3 if is_best else 2,
                 )
             ax.set_yscale("log")
             ax.set_xlabel("instances solved (all seeds valid)")
             ax.set_ylabel("per-instance time budget (s)")
+            ax.xaxis.set_major_locator(MaxNLocator(integer=True))
             ax.legend(loc="upper left")
         ax.set_title("Coverage against time budget")
         return _save(fig, out_dir, "cactus", dark)
@@ -206,10 +220,17 @@ def scaling_plot(
         if not curves and not timeouts:
             _empty(ax, tokens, "No solved run to plot.")
         else:
-            colors = _series_colors(sorted(set(curves) | set(timeouts)))
+            names = sorted(set(curves) | set(timeouts))
+            colors = _series_colors(names)
+            markers = _series_markers(names)
             for label, (xs, medians, lows, highs) in curves.items():
                 ax.plot(
-                    xs, medians, label=label, color=colors[label], marker="o", zorder=3
+                    xs,
+                    medians,
+                    label=label,
+                    color=colors[label],
+                    marker=markers[label],
+                    zorder=3,
                 )
                 ax.fill_between(
                     xs, lows, highs, color=colors[label], alpha=0.15, linewidth=0
@@ -289,10 +310,19 @@ def coverage_bars(summaries, out_dir: Path, dark: bool) -> Path:
         ax.set_yticks(list(positions))
         ax.set_yticklabels(labels, fontsize=9)
         ax.set_xlabel("instances")
+        # Instance counts are integers; 2.5 instances is not a thing.
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         ax.grid(axis="y", visible=False)
         ax.grid(axis="x", visible=True)
-        ax.legend(loc="lower right")
-        ax.set_title("Coverage per configuration")
+        # Above the axes rather than inside: the bars are sorted ascending, so
+        # every inside corner is occupied by some bar at some data size.
+        ax.legend(
+            loc="lower center",
+            bbox_to_anchor=(0.5, 1.02),
+            ncol=3,
+            borderaxespad=0.0,
+        )
+        ax.set_title("Coverage per configuration", pad=34)
         return _save(fig, out_dir, "coverage", dark)
 
 
