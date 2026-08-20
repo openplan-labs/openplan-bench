@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openplan-bench"
+version = "0.1.0"
+description = "Reproducible benchmarking harness and living leaderboard for the OpenPlan Labs planners"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Erwin Lejeune", email = "erwin.lejeune15@gmail.com" }]
+keywords = [
+    "benchmark",
+    "planning",
+    "pddl",
+    "mapf",
+    "reproducibility",
+    "leaderboard",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.24",
+    "matplotlib>=3.7",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# The planners are extras on purpose: the harness must install, run its unit
+# tests and build the site on a machine that has none of them.
+pddl = ["jupyddl>=2.3.0"]
+mapf = ["pymapf>=0.8.0"]
+cuda = ["cuda-planning[cuda12]>=0.1.0"]
+all = ["jupyddl>=2.3.0", "pymapf>=0.8.0"]
+dev = ["pytest>=7.4", "ruff>=0.5"]
+
+[project.scripts]
+openplan-bench = "openplan_bench.cli:main"
+
+[project.urls]
+Homepage = "https://openplan-labs.github.io/openplan-bench/"
+Source = "https://github.com/openplan-labs/openplan-bench"
+Issues = "https://github.com/openplan-labs/openplan-bench/issues"
+Changelog = "https://github.com/openplan-labs/openplan-bench/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+include = ["openplan_bench*"]
+
+[tool.setuptools.package-data]
+openplan_bench = ["templates/*.html", "templates/*.css", "templates/*.js"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# site.py is mostly HTML templates. Wrapping a <td> across lines to satisfy a
+# Python line limit makes the generated markup harder to read, not easier.
+"openplan_bench/site.py" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]

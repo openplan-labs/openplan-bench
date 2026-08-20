@@ -1,0 +1,59 @@
+# The suite the scheduled workflow runs on a GitHub Actions runner.
+#
+# RUNNER-GRADE. `runner_grade: true` is not decoration: it puts a warning on
+# the dashboard saying that the seconds in this table came from a shared,
+# virtualised, unpredictably-throttled machine and are not a hardware
+# comparison. Coverage, plan cost, node expansions and validity from this suite
+# are exact and worth watching for regressions; the wall times are worth
+# roughly nothing across runs and should never be quoted.
+#
+# Sized to finish in about ten minutes on a free runner, which is why the
+# instance list is short and the budget is tight rather than the planner list
+# being cut: a regression shows up as a configuration that stops solving
+# something, and you only see that if the configurations are all present.
+
+name: ci-weekly
+title: Weekly regression suite
+description: >
+  A small cross-section of both families, run on a shared GitHub Actions runner
+  every week. Its job is to notice that something stopped working, not to rank
+  hardware. Compare coverage and node counts across runs; ignore the seconds.
+
+runner_grade: true
+seeds: [0, 1, 2]
+repetitions: 1
+timeout_s: 15
+memory_limit_mb: 2048
+
+groups:
+  - adapter: jupyddl
+    corpus_root: ../corpus/pddl-examples
+    default_heuristic: hff
+    seeds: [0]
+    repetitions: 1
+    instances:
+      - dir: blocksworld
+      - dir: pallet
+      - dir: switch
+      - dir: tsp
+      - dir: domains/fast-downward-all-problem-suite/miconic
+        group: miconic
+        problems: [s1-0.pddl, s1-1.pddl, s10-0.pddl, s11-0.pddl]
+    planners:
+      - planner: bfs
+      - planner: gbfs
+        heuristic: hff
+      - planner: astar
+        heuristic: lmcut
+      - planner: astar
+        heuristic: hmax
+
+  - adapter: pymapf
+    grid_sizes: [16]
+    agent_counts: [4, 8, 16]
+    densities: [0.15]
+    planners:
+      - planner: cbs
+      - planner: prioritized
+      - planner: pibt
+      - planner: lacam

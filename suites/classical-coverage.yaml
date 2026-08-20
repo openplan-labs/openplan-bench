@@ -1,0 +1,64 @@
+# Classical PDDL planning — the suite with a difficulty gradient.
+#
+# The point of this one is that it contains instances the optimal planners do
+# not solve inside the budget. A coverage table where everything is 100% tells
+# you nothing; the interesting column is where each configuration stops.
+#
+# The miconic family is what supplies the gradient: `s1-*` carries one
+# passenger and is trivial, `s10-*` through `s12-*` carry ten to twelve and are
+# already past what A*/LM-Cut reaches in this budget while greedy best-first
+# with h_FF still solves them in well under a second. That gap — optimal vs.
+# satisficing, on the same domain — is the single most useful thing this suite
+# shows.
+
+name: classical-coverage
+title: Classical planning — coverage
+description: >
+  Eighteen instances spanning trivial to genuinely hard for a pure-Python
+  planner, run over six jupyddl configurations with a 20-second per-instance
+  budget. Read the cactus plot rather than the mean runtime: the configurations
+  differ in how many instances they finish at all, not in how fast they finish
+  the easy ones.
+
+seeds: [0]
+repetitions: 1
+timeout_s: 20
+memory_limit_mb: 3072
+
+groups:
+  - adapter: jupyddl
+    corpus_root: ../corpus/pddl-examples
+    default_heuristic: hff
+    instances:
+      - dir: blocksworld
+      - dir: dinner
+      - dir: flip
+      - dir: grid
+      - dir: pallet
+      - dir: switch
+      - dir: tsp
+      - dir: vehicle
+      - dir: domains/fast-downward-all-problem-suite/miconic
+        group: miconic
+        problems:
+          - s1-0.pddl
+          - s1-1.pddl
+          - s1-2.pddl
+          - s10-0.pddl
+          - s10-1.pddl
+          - s10-2.pddl
+          - s11-0.pddl
+          - s11-1.pddl
+          - s12-0.pddl
+          - s12-1.pddl
+    planners:
+      - planner: bfs
+      - planner: dijkstra
+      - planner: gbfs
+        heuristic: hff
+      - planner: gbfs
+        heuristic: hadd
+      - planner: astar
+        heuristic: lmcut
+      - planner: astar
+        heuristic: hmax

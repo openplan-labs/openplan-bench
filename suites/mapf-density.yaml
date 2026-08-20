@@ -1,0 +1,33 @@
+# Multi-agent path finding — the effect of obstacle density at a fixed agent
+# count.
+#
+# Agent count is the axis everybody plots. Density is the one that actually
+# decides whether CBS terminates: obstacles turn an open room into a set of
+# corridors, and corridors are where conflicts stop being independent. Holding
+# the agents fixed and sweeping density isolates that.
+
+name: mapf-density
+title: MAPF — obstacle density
+description: >
+  Sixteen agents on 20x20 grids, obstacle density from 5% to 30%, five seeds.
+  Same solvers as the scaling suite. The generator guarantees every start and
+  goal lies in one connected region, so a failure here is a solver failure and
+  never an unreachable goal.
+
+seeds: [0, 1, 2, 3, 4]
+repetitions: 1
+timeout_s: 20
+memory_limit_mb: 3072
+
+groups:
+  - adapter: pymapf
+    grid_sizes: [20]
+    agent_counts: [16]
+    densities: [0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
+    planners:
+      - planner: cbs
+      - planner: wcbs
+        options: {weight: 1.5}
+      - planner: prioritized
+      - planner: pibt
+      - planner: lacam

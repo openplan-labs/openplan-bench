@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.so
+.DS_Store
+
+# Scratch output from local runs. Committed results live under results/<suite>/.
+scratch/
+
+# Corpus checkouts fetched by the runner (see suites/*.yaml corpus_root).
+corpus/

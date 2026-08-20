@@ -1,0 +1,59 @@
+# Classical PDDL planning — the fast suite.
+#
+# Everything here is meant to finish in well under a second, so this is the
+# suite you run after touching the harness or a planner and want an answer
+# before you have finished reading the diff. It is deliberately not a
+# difficulty benchmark: see classical-coverage.yaml for that.
+#
+# Two of these instances do NOT solve, on purpose. `grid` uses numeric fluents
+# jupyddl cannot ground and `vehicle` ships with an undeclared object in its
+# goal. Both are recorded — a corpus is allowed to contain instances a planner
+# cannot read, and a benchmark that hides them is not telling you the truth
+# about what the planner supports.
+
+name: classical-smoke
+title: Classical planning — smoke
+description: >
+  Eight hand-written instances plus the five one-passenger miconic problems,
+  across six jupyddl configurations. Classical planning here is deterministic,
+  so the seed does nothing and the three repetitions exist purely to give the
+  timing a median rather than a single sample.
+
+seeds: [0]
+repetitions: 3
+timeout_s: 30
+memory_limit_mb: 3072
+
+groups:
+  - adapter: jupyddl
+    corpus_root: ../corpus/pddl-examples
+    default_heuristic: hff
+    instances:
+      # The eight hand-written examples at the corpus root.
+      - dir: blocksworld
+      - dir: dinner
+      - dir: flip
+      - dir: grid
+      - dir: pallet
+      - dir: switch
+      - dir: tsp
+      - dir: vehicle
+      # One domain file, five problems: the smallest miconic family.
+      - dir: domains/fast-downward-all-problem-suite/miconic
+        group: miconic
+        problems: [s1-0.pddl, s1-1.pddl, s1-2.pddl, s1-3.pddl, s1-4.pddl]
+    planners:
+      # Uninformed baselines. Both are cost-optimal on unit-cost domains and
+      # both are here to show what the heuristics are buying.
+      - planner: bfs
+      - planner: dijkstra
+      # Satisficing.
+      - planner: gbfs
+        heuristic: hff
+      - planner: gbfs
+        heuristic: hadd
+      # Optimal given an admissible heuristic — which both of these are.
+      - planner: astar
+        heuristic: lmcut
+      - planner: astar
+        heuristic: hmax

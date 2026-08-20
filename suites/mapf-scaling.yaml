@@ -1,0 +1,54 @@
+# Multi-agent path finding — how each solver scales with the agent count.
+#
+# The instances come from openplan_bench.mapfgen, not from either library's own
+# generator, so pymapf and cuplan are handed byte-identical grids, starts and
+# goals. That is what makes the sum-of-costs column a comparison rather than a
+# coincidence: comparing solution quality across two libraries that each rolled
+# their own map from the same seed number compares two different problems.
+#
+# The cuplan group is expected to record `not-installed` on most machines
+# (cuda-planning is not on PyPI yet) and its CUDA arm is expected to record
+# `skipped` wherever no working device is found. Both are visible rows.
+
+name: mapf-scaling
+title: MAPF — scaling with agent count
+description: >
+  Random-obstacle grids at 15% density, from 4 to 32 agents, over five seeds.
+  Five pymapf solvers and both cuplan CPU solvers on the same generated
+  instances. CBS and weighted CBS are optimal and bounded-suboptimal
+  respectively; PIBT and LaCAM are fast and incomplete; prioritized planning is
+  neither optimal nor complete. Expect the optimal solvers to fall off first —
+  that is the result, not a failure of the run.
+
+seeds: [0, 1, 2, 3, 4]
+repetitions: 1
+timeout_s: 20
+memory_limit_mb: 3072
+
+groups:
+  - adapter: pymapf
+    grid_sizes: [16, 24]
+    agent_counts: [4, 8, 16, 24, 32]
+    densities: [0.15]
+    planners:
+      - planner: cbs            # Sharon et al., 2015 — optimal on sum-of-costs
+      - planner: wcbs           # bounded-suboptimal
+        options: {weight: 1.5}
+      - planner: prioritized    # Erdmann & Lozano-Perez, 1987 — incomplete
+      - planner: pibt           # Okumura et al., 2022
+      - planner: lacam          # Okumura, 2023
+
+  # Same instances, the other implementation. Records `not-installed` when
+  # cuda-planning is absent; the CUDA arm records `skipped` with a reason when
+  # no working device is present.
+  - adapter: cuplan
+    grid_sizes: [16, 24]
+    agent_counts: [4, 8, 16, 24, 32]
+    densities: [0.15]
+    planners:
+      - planner: prioritized
+        options: {backend: cpu}
+      - planner: pibt
+        options: {backend: cpu}
+      - planner: pibt
+        options: {backend: cuda}
