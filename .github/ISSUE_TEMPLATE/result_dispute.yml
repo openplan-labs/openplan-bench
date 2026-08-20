@@ -1,0 +1,53 @@
+name: A number looks wrong
+description: Challenge a result or a caption on the leaderboard
+title: "result: "
+labels: ["result", "important"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This is the most valuable kind of report this project gets.** A
+        benchmark's only asset is that people believe it. If a number is wrong,
+        a caption overclaims, or a comparison is unfair, say so.
+
+  - type: input
+    id: suite
+    attributes:
+      label: Suite
+      placeholder: classical-coverage
+    validations:
+      required: true
+
+  - type: input
+    id: results_file
+    attributes:
+      label: Results file
+      description: The dated CSV under `results/<suite>/`, if you know it.
+      placeholder: results/classical-coverage/2026-08-21.csv
+
+  - type: textarea
+    id: rows
+    attributes:
+      label: The rows in question
+      description: Paste them, or name the instance and configuration.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong with them
+      description: >
+        For example: the configuration is mislabelled, a timeout is being
+        counted as an unsolvable instance, two columns are not measuring the
+        same problem, or a caption claims more than the data supports.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: What you observed instead
+      description: >
+        Your own run, a reference implementation's answer, or a reading of the
+        code. Include your machine if you re-ran anything.

@@ -1,0 +1,51 @@
+name: Bug report
+description: Something in the harness, the CLI or the site is broken
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a *result* you think is wrong rather than a *crash*, use the
+        "A number looks wrong" template instead.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Include the full traceback if there is one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The exact command, and the suite file if it is a custom one.
+      render: shell
+      placeholder: python -m openplan_bench run suites/classical-smoke.yaml --out results/
+    validations:
+      required: true
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Paste the output of `python -m openplan_bench env`.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: adapters
+    attributes:
+      label: Adapter status
+      description: Paste the output of `python -m openplan_bench adapters`.
+      render: shell

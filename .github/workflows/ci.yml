@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check --output-format=github .
+
+  test:
+    name: pytest (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # No planner is installed on purpose. The harness's own tests run against
+      # the fake adapter, so they are fast and deterministic, and this job also
+      # proves the promise the README makes: openplan-bench installs and works
+      # on a machine with none of the backends present.
+      - run: pip install -e '.[dev]'
+      - run: pytest -q
+
+      - name: adapters degrade rather than crash
+        run: |
+          python -m openplan_bench adapters
+          python -m openplan_bench env
+
+  smoke:
+    name: end-to-end with the real planners
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e '.[all,dev]'
+
+      - name: fetch the problem corpus
+        run: |
+          git clone --depth 1 https://github.com/openplan-labs/pddl-examples \
+            corpus/pddl-examples
+
+      # A handful of real runs, into a scratch directory that is never
+      # committed. This catches an adapter that broke against a new planner
+      # release, which the fake-adapter tests cannot see.
+      - name: run a few real jobs
+        run: |
+          python -m openplan_bench run suites/classical-smoke.yaml \
+            --out scratch/results --limit 12
+          python -m openplan_bench run suites/mapf-scaling.yaml \
+            --out scratch/results --limit 12
+
+      - name: the site builds from those results
+        run: |
+          python -m openplan_bench site --results scratch/results --out scratch/docs
+          test -f scratch/docs/index.html
+          test -f scratch/docs/methodology.html
+          grep -q "openplan-bench" scratch/docs/index.html

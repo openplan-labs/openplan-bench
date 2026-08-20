@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+title: >-
+  openplan-bench: a reproducible benchmarking harness and leaderboard for the
+  OpenPlan Labs planners
+message: >-
+  If you use these benchmarks or this harness in academic work, please cite it,
+  and please state the suite, the results file date and the machine — a number
+  without those is not a result.
+type: software
+authors:
+  - given-names: Erwin
+    family-names: Lejeune
+    email: erwin.lejeune15@gmail.com
+repository-code: https://github.com/openplan-labs/openplan-bench
+url: https://openplan-labs.github.io/openplan-bench/
+abstract: >-
+  openplan-bench runs the OpenPlan Labs planners over shared problem sets and
+  publishes the results as a leaderboard. It covers classical PDDL planning via
+  jupyddl and multi-agent path finding via pymapf and cuda-planning, behind a
+  uniform adapter interface. Every requested run produces exactly one record,
+  including runs that time out, error, or could not be attempted, so coverage
+  figures are not inflated by omission. Each record carries the machine, the
+  package versions, the seed and the harness commit that produced it. Solutions
+  are accepted only after independent validation, and an instance counts as
+  solved only when every seed solved it.
+keywords:
+  - benchmarking
+  - reproducibility
+  - automated planning
+  - PDDL
+  - multi-agent path finding
+license: MIT
+version: 0.1.0
+date-released: '2026-08-21'

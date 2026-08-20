@@ -1,0 +1,95 @@
+# The scheduled benchmark.
+#
+# IMPORTANT: this runs on a shared GitHub Actions runner. The suite it runs is
+# marked `runner_grade: true`, which makes the dashboard say out loud that the
+# seconds in that table are not a hardware comparison. Coverage, plan cost,
+# node expansions and validity from this job are exact and are what a
+# regression would show up in; the wall times vary by a factor of two between
+# runs and must never be quoted.
+#
+# Results are committed. History is never overwritten: each run adds a new
+# dated file next to the old ones.
+
+name: Benchmark
+
+on:
+  schedule:
+    # Mondays, 05:23 UTC. Off the hour, because everyone schedules on the hour
+    # and a shared runner is at its worst then.
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Suite file to run"
+        default: "suites/ci-weekly.yaml"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bench
+  cancel-in-progress: false
+
+jobs:
+  bench:
+    name: run the weekly suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install the harness and every available planner
+        run: pip install -e '.[all,dev]'
+
+      - name: fetch the problem corpus
+        run: |
+          git clone --depth 1 https://github.com/openplan-labs/pddl-examples \
+            corpus/pddl-examples
+          echo "corpus SHA: $(git -C corpus/pddl-examples rev-parse --short HEAD)"
+
+      - name: record the environment
+        run: python -m openplan_bench adapters && python -m openplan_bench env
+
+      - name: run the suite
+        run: |
+          python -m openplan_bench run \
+            "${{ inputs.suite || 'suites/ci-weekly.yaml' }}" --out results/
+
+      - name: rebuild the dashboard
+        run: python -m openplan_bench site --results results/ --out docs/
+
+      - name: summarise into the run log
+        run: python -m openplan_bench report results/ >> "$GITHUB_STEP_SUMMARY"
+
+      - name: commit the results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/ docs/
+          if git diff --cached --quiet; then
+            echo "Nothing changed."
+            exit 0
+          fi
+          git commit -m "bench: weekly runner-grade results
+
+          Ran on a shared GitHub Actions runner. Coverage, costs and node
+          counts are exact; the wall times are not a hardware comparison.
+
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          git push
+
+  deploy:
+    name: redeploy the dashboard
+    needs: bench
+    uses: ./.github/workflows/docs.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

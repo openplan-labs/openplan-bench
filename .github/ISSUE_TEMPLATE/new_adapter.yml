@@ -1,0 +1,71 @@
+name: New adapter
+description: Propose a planner to add to the leaderboard
+title: "adapter: <planner name>"
+labels: ["adapter"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Adding a planner is one module and one line — see
+        [Adding a planner](https://github.com/openplan-labs/openplan-bench#adding-a-planner).
+        Open this issue first if you want to agree the shape before writing it.
+
+  - type: input
+    id: planner
+    attributes:
+      label: Planner
+      description: Name, and a link to its repository or paper.
+      placeholder: "Fast Downward — https://www.fast-downward.org/"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: family
+    attributes:
+      label: Family
+      options:
+        - classical (PDDL)
+        - mapf
+        - something else (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: install
+    attributes:
+      label: How it installs
+      description: >
+        A pip-installable distribution, or a binary that has to be built? If it
+        is not pip-installable, say how `available()` should detect it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: metrics
+    attributes:
+      label: What it reports
+      description: >
+        Which of cost, plan length, makespan, sum-of-costs, expanded, generated
+        and evaluated does it actually give you? Anything it does not report
+        stays `None` — that is fine, we just want to know in advance.
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: How a solution gets validated
+      description: >
+        Independently of the planner's own claim. VAL, a replay through the
+        grounded task, a conflict re-scan — what will the adapter use?
+    validations:
+      required: true
+
+  - type: input
+    id: budget
+    attributes:
+      label: Does it have its own time budget?
+      description: >
+        If the backend can stop itself cleanly, the adapter should pass
+        `timeout_s` down — a clean stop reports far better statistics than a
+        kill.

@@ -1,0 +1,16 @@
+blank_issues_enabled: true
+contact_links:
+  - name: The leaderboard
+    url: https://openplan-labs.github.io/openplan-bench/
+    about: The published results, and what they do and do not mean.
+  - name: Methodology
+    url: https://openplan-labs.github.io/openplan-bench/methodology.html
+    about: What "solved" means, how timeouts are handled, what is not covered.
+  - name: A planner itself is misbehaving
+    url: https://github.com/openplan-labs
+    about: >-
+      If jupyddl, pymapf or cuda-planning returns a wrong answer, file it on
+      that repository. File here if the harness measures it wrongly.
+  - name: A problem instance looks broken
+    url: https://github.com/openplan-labs/pddl-examples/issues
+    about: The PDDL corpus lives in its own repository.
