@@ -165,6 +165,7 @@ th[role="columnheader"]:focus-visible, .themetoggle:focus-visible {
   outline: 2px solid var(--color-path);
   outline-offset: 2px;
 }
+/* The filter input is labelled by aria-label; no visible label element. */
 .controls .count { color: var(--color-faint); font-size: var(--text-sm); margin-left: auto; }
 
 /* --- tables ------------------------------------------------------------ */

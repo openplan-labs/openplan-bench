@@ -319,8 +319,8 @@ def _cell_table(cells) -> str:
 def _controls(outcomes: list[str], scope_id: str) -> str:
     options = "".join(f'<option value="{esc(o)}">{esc(o)}</option>' for o in outcomes)
     return f"""  <div class="controls">
-    <label class="sr" for="q-{scope_id}"></label>
-    <input id="q-{scope_id}" type="search" data-filter placeholder="Filter instances or planners…" size="30">
+    <input id="q-{scope_id}" type="search" data-filter aria-label="Filter rows"
+           placeholder="Filter instances or planners…" size="30">
     <select data-filter-outcome aria-label="Filter by outcome">
       <option value="">every outcome</option>{options}
     </select>
