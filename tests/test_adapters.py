@@ -195,3 +195,55 @@ def test_a_silent_failure_that_ate_the_budget_is_still_a_timeout():
 
     assert _is_budget_failure("", 19.9, 20.0)
     assert not _is_budget_failure("", 0.01, 20.0)
+
+
+def test_the_cuplan_backend_becomes_part_of_the_configuration_label():
+    """cpu and cuda are two leaderboard rows, not two samples of one.
+
+    If the backend stayed buried in the options dict the two would share a
+    label and the aggregation would take a median across both, reporting a
+    number that describes neither.
+    """
+    from openplan_bench.adapters.cuplan_adapter import CuplanAdapter
+
+    configs = CuplanAdapter().configs(
+        {
+            "planners": [
+                {"planner": "pibt", "options": {"backend": "cpu"}},
+                {"planner": "pibt", "options": {"backend": "cuda"}},
+                {"planner": "prioritized"},
+            ]
+        }
+    )
+    assert [c.label for c in configs] == ["pibt@cpu", "pibt@cuda", "prioritized@cpu"]
+    assert len({c.label for c in configs}) == 3
+
+
+def test_variant_survives_the_subprocess_boundary(tmp_path):
+    """The label is only useful if the child sends it back."""
+    import textwrap
+
+    from openplan_bench.runner import run_suite
+    from openplan_bench.suite import load_suite
+
+    path = tmp_path / "s.yaml"
+    path.write_text(
+        textwrap.dedent(
+            """
+            name: variants
+            seeds: [0]
+            groups:
+              - adapter: fake
+                instances: [{id: x}]
+                planners:
+                  - planner: p
+                    variant: alpha
+                  - planner: p
+                    variant: beta
+            """
+        ),
+        encoding="utf-8",
+    )
+    rows = run_suite(load_suite(path))
+    assert sorted(r.label for r in rows) == ["p@alpha", "p@beta"]
+    assert sorted(r.variant for r in rows) == ["alpha", "beta"]

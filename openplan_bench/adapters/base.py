@@ -34,11 +34,14 @@ class RunConfig:
 
     planner: str
     heuristic: str = ""
+    #: See :attr:`openplan_bench.records.RunRecord.variant`.
+    variant: str = ""
     options: dict[str, Any] = field(default_factory=dict)
 
     @property
     def label(self) -> str:
-        return f"{self.planner}/{self.heuristic}" if self.heuristic else self.planner
+        name = f"{self.planner}/{self.heuristic}" if self.heuristic else self.planner
+        return f"{name}@{self.variant}" if self.variant else name
 
 
 class Adapter:
@@ -83,6 +86,7 @@ class Adapter:
                 RunConfig(
                     planner=str(entry["planner"]),
                     heuristic=str(entry.get("heuristic", "") or ""),
+                    variant=str(entry.get("variant", "") or ""),
                     options=dict(entry.get("options", {}) or {}),
                 )
             )
@@ -122,6 +126,7 @@ class Adapter:
             instance_group=instance.group,
             planner=config.planner,
             heuristic=config.heuristic,
+            variant=config.variant,
             config=json.dumps(config.options, sort_keys=True) if config.options else "",
             **kwargs,
         )

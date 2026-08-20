@@ -72,6 +72,7 @@ def execute(job: dict) -> dict:
     config = RunConfig(
         planner=job["config"]["planner"],
         heuristic=job["config"].get("heuristic", ""),
+        variant=job["config"].get("variant", ""),
         options=job["config"].get("options", {}),
     )
 

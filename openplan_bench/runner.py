@@ -62,6 +62,7 @@ class Job:
             "config": {
                 "planner": self.config.planner,
                 "heuristic": self.config.heuristic,
+                "variant": self.config.variant,
                 "options": self.config.options,
             },
             "seed": self.seed,

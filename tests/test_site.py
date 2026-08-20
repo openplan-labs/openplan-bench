@@ -134,6 +134,8 @@ def test_load_results_reads_the_header_beside_the_rows(tmp_path):
 def test_latest_json_is_machine_readable(tmp_path):
     results = _results(tmp_path)
     payload = json.loads((results / "demo" / "latest.json").read_text())
-    assert payload["schema_version"] == 1
+    from openplan_bench.records import SCHEMA_VERSION
+
+    assert payload["schema_version"] == SCHEMA_VERSION
     assert len(payload["rows"]) == 3
     assert payload["rows"][1]["outcome"] == "timeout"

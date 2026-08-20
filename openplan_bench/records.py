@@ -20,7 +20,7 @@ from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 #: Every terminal state a single measured run can be in.
 OUTCOMES = (
@@ -49,6 +49,11 @@ class RunRecord:
     instance_group: str = ""  # domain / collection / scenario builder
     planner: str = ""
     heuristic: str = ""
+    #: A second qualifier that makes two runs of the same planner different
+    #: configurations rather than repetitions of one: cuplan's ``cpu`` vs
+    #: ``cuda`` backend is the motivating case. Without it the two would share
+    #: a leaderboard row and their timings would be averaged together.
+    variant: str = ""
     config: str = ""  # JSON of any extra planner knobs
 
     # --- how it was run ---------------------------------------------------
@@ -96,8 +101,9 @@ class RunRecord:
 
     @property
     def label(self) -> str:
-        """``planner/heuristic`` — how a configuration is named in tables."""
-        return f"{self.planner}/{self.heuristic}" if self.heuristic else self.planner
+        """How a configuration is named in tables: ``planner/heuristic@variant``."""
+        name = f"{self.planner}/{self.heuristic}" if self.heuristic else self.planner
+        return f"{name}@{self.variant}" if self.variant else name
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)

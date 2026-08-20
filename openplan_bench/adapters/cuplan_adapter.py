@@ -67,14 +67,18 @@ class CuplanAdapter(Adapter):
         return grid_instances(spec)
 
     def configs(self, spec: dict[str, Any]) -> list[RunConfig]:
-        """Read ``backend`` out of the options and onto the configuration label.
+        """Lift ``backend`` out of the options and onto the configuration label.
 
-        ``prioritized`` on the CPU and ``prioritized`` on a GPU are two rows in
-        the leaderboard, so the backend has to appear in the name.
+        ``pibt`` on the CPU and ``pibt`` on a GPU are two rows in the
+        leaderboard, not two samples of one. If the backend stayed buried in
+        the options dict they would share a label, and the aggregation would
+        take a median across both — reporting a number that describes neither.
         """
         out: list[RunConfig] = []
         for config in super().configs(spec):
-            config.options.setdefault("backend", "cpu")
+            backend = str(config.options.setdefault("backend", "cpu")).lower()
+            config.options["backend"] = backend
+            config.variant = config.variant or backend
             out.append(config)
         return out
 
