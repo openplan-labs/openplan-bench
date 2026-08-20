@@ -58,14 +58,46 @@ First release. The harness, five suites, the dashboard, and a real first run.
   and a separate end-to-end job with the real ones), `bench.yml` (weekly
   runner-grade suite, commits results, redeploys), `docs.yml` (Pages).
 
-### Notes on the first run
+### The first run
 
-The first committed results were measured on an 11th Gen Intel Core i7-11850H
-with jupyddl 2.3.0 and pymapf 0.8.0. They include genuine failures, which are
-in the tables on purpose: the `grid` instance uses numeric fluents jupyddl
-cannot ground, `vehicle` ships with an undeclared object in its goal, and the
-optimal classical configurations do not finish the larger miconic instances
-within the budget. Those are results.
+892 rows across four suites, measured on an 11th Gen Intel Core i7-11850H
+(16 logical CPUs) with jupyddl 2.3.0 and pymapf 0.8.0, all from one clean
+harness commit.
+
+| Suite | Rows | Solved | Timeout | Unsolved | Error | Not run |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `classical-smoke` | 234 | 198 | 0 | 18 | 18 | 0 |
+| `classical-coverage` | 108 | 68 | 28 | 6 | 6 | 0 |
+| `mapf-scaling` | 400 | 228 | 17 | 5 | 0 | 150 |
+| `mapf-density` | 150 | 130 | 16 | 4 | 0 | 0 |
+
+The failures are in the tables on purpose, and several of them are the most
+informative rows in the run:
+
+- The `grid` instance raises `UnsupportedFeatureError` on every configuration:
+  it is written with numeric fluents (`(wall (+ xpos 1) ypos)`) that jupyddl
+  does not ground. "Cannot read this domain" is a real limitation.
+- `vehicle` is `unsolved` everywhere in 6 ms. The instance ships with an
+  undeclared object in its goal, so nothing can reach it.
+- On `classical-coverage`, greedy best-first reaches 88.9% coverage while every
+  optimal or uninformed configuration reaches 50%. The whole gap is the larger
+  miconic instances, where A*/LM-Cut exhausts a 20-second budget after ~100
+  expansions and greedy best-first with h_FF finishes in ~0.2 s.
+- On `mapf-scaling`, CBS solves nothing above 16 agents and LaCAM solves
+  everything, which is what the two algorithms' guarantees predict.
+- The 150 `not-installed` rows are the `cuplan` groups: `cuda-planning` is not
+  on PyPI, so it was absent. The runs were still enumerated and each says why.
+
+### Fixed before release, by the first run itself
+
+- pymapf's CBS consumed its full 20-second budget, returned a bare `None`, and
+  was being recorded as `unsolved` — crediting it with a conclusion it never
+  reached. The adapter now reads pymapf's `failed` event and records `timeout`.
+  This moved 17 rows in `mapf-scaling` and 16 in `mapf-density`.
+- The `cuplan` CPU and CUDA arms shared a leaderboard label, which would have
+  averaged two backends into one row. Configurations now carry a `variant`.
+- The scaling band was computed from per-cell medians rather than the observed
+  values, which understated the spread.
 
 [Unreleased]: https://github.com/openplan-labs/openplan-bench/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/openplan-labs/openplan-bench/releases/tag/v0.1.0

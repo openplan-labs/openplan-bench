@@ -1,0 +1,80 @@
+/**
+ * Frontier — openplan-labs brand tokens.
+ * Vendored from openplan-labs/branding · tokens/tokens.css. That repo is the
+ * source of truth; if these drift, it wins. Vendored rather than linked so the
+ * dashboard has no external dependency and renders offline.
+ *
+ * Light-first. All three viewer states:
+ *   :root                                complete light palette
+ *   @media (prefers-color-scheme: dark)  dark, unless light is stamped
+ *   :root[data-theme="dark"]             explicit dark wins either way
+ * Never declare a colour only inside a media or [data-theme] block.
+ */
+:root {
+  --color-bg: #f2f4f6;
+  --color-bg-raised: #ffffff;
+  --color-line: #d9dfe4;
+
+  --color-heading: #14181c;
+  --color-body: #3c464e;
+  --color-muted: #5e6a73;
+  --color-faint: #7b8790;
+
+  /* Semantic search trio. The accent is `path`. */
+  --color-path: #c2472c;
+  --color-path-soft: rgba(194, 71, 44, 0.08);
+  --color-frontier: #127a78;
+  --color-frontier-soft: rgba(18, 122, 120, 0.10);
+  --color-expanded: #6d8298;
+
+  /* Categorical ramp — multi-agent and planner comparison only. */
+  --agent-1: #3d6d8f; --agent-2: #4f8a7b; --agent-3: #7a6f9c; --agent-4: #8a6d5a;
+  --agent-5: #5b7f9e; --agent-6: #6b9a8b; --agent-7: #8f7fae; --agent-8: #9c7f6a;
+
+  --font-display: "Libre Franklin", "Helvetica Neue", Helvetica, sans-serif;
+  --font-prose: "Charter", "XCharter", "Charis SIL", Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.2rem;
+  --text-xl: 1.44rem;
+  --text-2xl: 1.728rem;
+  --text-3xl: 2.074rem;
+
+  --tracking-label: 0.08em;
+  --measure: 70ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #12171a;
+    --color-bg-raised: #1a2126;
+    --color-line: #2a343a;
+    --color-heading: #e8edf0;
+    --color-body: #aab6bd;
+    --color-muted: #7d8b93;
+    --color-faint: #59666e;
+    --color-path: #e87a5c;
+    --color-path-soft: rgba(232, 122, 92, 0.10);
+    --color-frontier: #3fb3ad;
+    --color-frontier-soft: rgba(63, 179, 173, 0.12);
+    --color-expanded: #8ba2b7;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #12171a;
+  --color-bg-raised: #1a2126;
+  --color-line: #2a343a;
+  --color-heading: #e8edf0;
+  --color-body: #aab6bd;
+  --color-muted: #7d8b93;
+  --color-faint: #59666e;
+  --color-path: #e87a5c;
+  --color-path-soft: rgba(232, 122, 92, 0.10);
+  --color-frontier: #3fb3ad;
+  --color-frontier-soft: rgba(63, 179, 173, 0.12);
+  --color-expanded: #8ba2b7;
+}

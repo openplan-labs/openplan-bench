@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Methodology · openplan-bench</title>
+<meta name="description" content="Reproducible benchmarks for the OpenPlan Labs planners.">
+<link rel="icon" href="https://raw.githubusercontent.com/openplan-labs/branding/main/assets/logo/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap">
+    <div class="brandline">
+      <img src="https://raw.githubusercontent.com/openplan-labs/branding/main/assets/logo/mark-accent.svg" alt="" width="30" height="30"
+           data-light="https://raw.githubusercontent.com/openplan-labs/branding/main/assets/logo/mark-accent.svg" data-dark="https://raw.githubusercontent.com/openplan-labs/branding/main/assets/logo/mark-dark.svg">
+      <span class="org">OpenPlan Labs</span>
+    </div>
+    <h1>openplan-bench</h1>
+    <p class="tagline">One harness, one problem set, one results schema for
+      every planner in the org. Planners not included &mdash; they are extras.</p>
+    <nav class="tabs">
+      <a href="index.html">Leaderboard</a>
+      <a href="methodology.html" aria-current="page">Methodology</a>
+      <a href="reproduce.html">Reproduce</a>
+      <a href="https://github.com/openplan-labs/openplan-bench">Source</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+<div class="prose">
+<h2>What a number here means</h2>
+<p>A benchmark that reports only its successes is an advertisement. This one
+records every run it was asked to make, and the tables above show the failures
+next to the wins because that is the comparison a reader needs.</p>
+
+<h3>Outcomes</h3>
+<dl class="defs">
+  <dt>solved</dt>
+  <dd>The planner returned a plan <em>and</em> an independent validator accepted
+    it. For classical planning the plan is replayed through the grounded task
+    and the goal is re-checked; for MAPF the returned paths are re-scanned for
+    vertex and edge conflicts. A planner's own claim of success is never
+    sufficient — a plan the validator rejects is shown as
+    <span class="pill error">invalid</span> and does not count towards coverage.</dd>
+  <dt>unsolved</dt>
+  <dd>The planner terminated on its own and reported no solution. For an
+    incomplete planner this is data, not a bug: it means the search strategy
+    failed on this instance, not that the instance is unsolvable.</dd>
+  <dt>timeout</dt>
+  <dd>The wall-clock budget was exhausted. The recorded time is the
+    <em>budget</em>, never an extrapolation of how long the run would have
+    taken. Solvability is unknown. This is the single most important
+    distinction on the page: a timeout is not a proof of unsolvability.</dd>
+  <dt>memory</dt>
+  <dd>The address-space limit fired, or the process was killed by the OOM
+    killer. As with a timeout, solvability is unknown.</dd>
+  <dt>error</dt>
+  <dd>The planner raised, crashed, or produced output the adapter could not
+    read. The message is kept in the row. Parse failures on a domain a planner
+    does not support land here, which is deliberate: "cannot read this domain"
+    is a real limitation and belongs in the table.</dd>
+  <dt>skipped</dt>
+  <dd>Deliberately not run. The CUDA arm on a machine with no working GPU is
+    the common case, and the row says so rather than vanishing.</dd>
+  <dt>not-installed</dt>
+  <dd>The backend was not importable in the environment that produced these
+    results. The runs were still enumerated, so a gap in the table is always
+    explained.</dd>
+</dl>
+
+<h3>Coverage</h3>
+<p>An instance counts as solved for a configuration only when <strong>every
+seed</strong> returned a valid solution. A configuration that solves an
+instance on two seeds out of three is reported as partial, not as solved:
+a coverage number that a re-run would not reproduce is not worth printing.
+Runs that never happened are excluded from the denominator rather than counted
+as failures.</p>
+
+<h3>Timing</h3>
+<ul class="tight">
+  <li>Wall-clock, <code>time.perf_counter</code>, measured inside the child
+    process around the whole call — parsing and grounding included, because that
+    is time a user waits.</li>
+  <li>Every run happens in a fresh subprocess with a hard kill and an
+    <code>RLIMIT_AS</code> cap, so a wedged planner costs one row, not the
+    sweep.</li>
+  <li>Runs are executed <strong>serially</strong>. Timing N planners on N cores
+    measures the memory subsystem, not the planners.</li>
+  <li>Reported statistics are the <strong>median over seeds</strong> with the
+    observed <strong>min&ndash;max</strong> as the band. Three seeds do not
+    support a standard deviation, and a mean is moved by a single scheduling
+    hiccup.</li>
+  <li>Timing aggregates use solved runs only. Folding a timeout's budget into a
+    mean runtime makes a planner look faster as it starts failing.</li>
+</ul>
+
+<h3>Hardware these numbers came from</h3>
+<ul class="tight">
+    <li><code>11th Gen Intel(R) Core(TM) i7-11850H @ 2.50GHz (16 logical CPUs), Linux 6.8.0-136-generic (x86_64), Python 3.10.12, harness 0.1.0@62459c293440. Installed: jupyddl 2.3.0, matplotlib 3.10.9, numpy 2.2.6, openplan-bench 0.1.0, pymapf 0.8.0.</code></li>
+</ul>
+<p>Every row carries its own CPU model, platform, Python version, package
+versions, timestamp, seed and the harness git SHA, so results files from
+different machines stay interpretable after they are concatenated.</p>
+
+<h3>What this does <em>not</em> measure</h3>
+<div class="note warn"><p>Read this section before quoting a number.</p></div>
+<ul class="tight">
+  <li><strong>It is not a planner competition.</strong> The problem set is what
+    <a href="https://github.com/openplan-labs/pddl-examples">pddl-examples</a>
+    happens to contain plus generated MAPF grids &mdash; not a stratified
+    benchmark set. Coverage here does not transfer to IPC coverage.</li>
+  <li><strong>It does not compare these planners to the state of the art.</strong>
+    Nothing here is measured against Fast Downward, LAMA, EECBS or any other
+    external system. These are pure-Python research implementations and the
+    numbers should be read as such.</li>
+  <li><strong>Cross-machine times are not comparable.</strong> Suites marked
+    <span class="badge runner">runner-grade</span> ran on shared CI hardware.
+    Their coverage and costs are exact; their seconds are not a hardware
+    comparison and must not be quoted as one.</li>
+  <li><strong>Absolute times include Python startup and parsing</strong> inside
+    the measured region for classical planning. That is honest for a user
+    waiting on a CLI and unfair as an algorithmic comparison; node expansions
+    are the metric to use for the latter.</li>
+  <li><strong>No memory profiling.</strong> Peak RSS is recorded per run as a
+    coarse figure, not measured carefully.</li>
+  <li><strong>No GPU results unless a suite says so.</strong> The CUDA arm is
+    skipped, visibly, wherever no working device was found.</li>
+</ul>
+</div>
+</main>
+<footer class="foot">
+  <div class="wrap">
+    <p>Generated by <code>openplan-bench site</code> from the results committed
+      in this repository. Every number on this page is reproducible from
+      <code>results/</code> and the suite file that produced it.</p>
+    <p>Colour, type and figures follow
+      <a href="https://github.com/openplan-labs/branding">openplan-labs/branding</a>
+      (Frontier). Built 2026-08-20T22:17:23+00:00.</p>
+  </div>
+</footer>
+<script src="assets/site.js"></script>
+</body>
+</html>
