@@ -41,6 +41,7 @@ git clone https://github.com/openplan-labs/pddl-examples ../pddl-examples
 python -m venv .venv &amp;&amp; source .venv/bin/activate
 pip install -e '.[all,dev]'
 
+python -m openplan_bench run suites/ci-weekly.yaml --out results/
 python -m openplan_bench run suites/classical-coverage.yaml --out results/
 python -m openplan_bench run suites/classical-smoke.yaml --out results/
 python -m openplan_bench run suites/mapf-density.yaml --out results/
@@ -92,7 +93,7 @@ interface is three methods and is documented in
       <code>results/</code> and the suite file that produced it.</p>
     <p>Colour, type and figures follow
       <a href="https://github.com/openplan-labs/branding">openplan-labs/branding</a>
-      (Frontier). Built 2026-08-20T22:17:23+00:00.</p>
+      (Frontier). Built 2026-08-20T22:23:22+00:00.</p>
   </div>
 </footer>
 <script src="assets/site.js"></script>
