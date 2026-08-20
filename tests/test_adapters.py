@@ -173,3 +173,25 @@ def test_mapf_instance_expansion_drops_infeasible_cells():
     )
     assert len(instances) == 1
     assert instances[0].id == "random_obstacles/6x6/n2/d0.1"
+
+
+# --- "gave up" is not "no solution" ----------------------------------------
+def test_a_solver_stopping_on_its_own_budget_is_a_timeout():
+    """The distinction the whole project exists to preserve.
+
+    pymapf returns a bare ``None`` whether its constraint tree was exhausted or
+    its time limit expired. Recording the second as ``unsolved`` would claim
+    the solver proved something it never looked at.
+    """
+    from openplan_bench.adapters.pymapf_adapter import _is_budget_failure
+
+    assert _is_budget_failure("time limit (20s) reached after 811 nodes", 20.0, 20.0)
+    assert _is_budget_failure("expansion limit (10000) reached", 0.4, 20.0)
+    assert not _is_budget_failure("constraint tree exhausted", 0.004, 20.0)
+
+
+def test_a_silent_failure_that_ate_the_budget_is_still_a_timeout():
+    from openplan_bench.adapters.pymapf_adapter import _is_budget_failure
+
+    assert _is_budget_failure("", 19.9, 20.0)
+    assert not _is_budget_failure("", 0.01, 20.0)

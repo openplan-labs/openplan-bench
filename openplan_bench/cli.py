@@ -195,6 +195,15 @@ def _cmd_report(args) -> int:
         print(header)
         print("-" * len(header))
         for summary in summaries:
+            if not summary.was_run:
+                print(
+                    f"{summary.adapter + ':' + summary.label:<34} "
+                    f"{summary.family:<10} "
+                    f"{'not run':>7} "
+                    f"{'—':>7} {'—':>5} {'—':>4} {'—':>4} "
+                    f"({summary.not_run} run(s) never attempted)"
+                )
+                continue
             print(
                 f"{summary.adapter + ':' + summary.label:<34} "
                 f"{summary.family:<10} "

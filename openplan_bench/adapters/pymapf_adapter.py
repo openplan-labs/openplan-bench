@@ -60,6 +60,26 @@ def grid_instances(spec: dict[str, Any], builder: str = "random_obstacles") -> l
     return out
 
 
+#: Substrings pymapf uses in a "failed" reason when it stopped on a budget
+#: rather than on an exhausted search space.
+_BUDGET_REASONS = ("time limit", "expansion limit", "timeout", "budget")
+
+
+def _is_budget_failure(reason: str, elapsed: float, timeout_s: float) -> bool:
+    """Whether a ``None`` from the solver means "gave up", not "no solution".
+
+    The reason string is the authority. The elapsed-time fallback exists for a
+    solver that returns nothing at all: if it consumed essentially the whole
+    budget, calling that "unsolved" would be a claim the run does not support.
+    """
+    lowered = reason.lower()
+    if any(token in lowered for token in _BUDGET_REASONS):
+        return True
+    if "exhaust" in lowered:
+        return False
+    return timeout_s > 0 and elapsed >= 0.95 * timeout_s
+
+
 def _supported(algorithm: str, options: dict[str, Any]) -> dict[str, Any]:
     """Drop constructor keywords a given ``pymapf`` solver does not accept."""
     from pymapf.core.solver import _REGISTRY
@@ -115,13 +135,28 @@ class PymapfAdapter(Adapter):
         options.setdefault("time_limit", timeout_s)
         solver = get_solver(config.planner, **_supported(config.planner, options))
 
+        # pymapf solvers return a bare None on failure, so `solve` alone cannot
+        # tell "the constraint tree was exhausted" from "the budget ran out".
+        # Those are completely different facts — the first says no solution
+        # exists for this solver, the second says nothing at all — and the
+        # observer is where pymapf reports which one happened.
+        failure: dict[str, str] = {}
+
+        def watch(event):
+            if event.kind == "failed":
+                failure["reason"] = str(event.get("reason", ""))
+
         elapsed = self.timer()
-        solution = solver.solve(problem)
+        solution = solver.solve(problem, observer=watch)
         record.wall_time_s = elapsed()
 
         if solution is None:
-            record.outcome = "unsolved"
-            record.note = "solver returned no solution"
+            reason = failure.get("reason", "")
+            record.note = reason or "solver returned no solution"
+            if _is_budget_failure(reason, record.wall_time_s, timeout_s):
+                record.outcome = "timeout"
+            else:
+                record.outcome = "unsolved"
             return record
 
         record.outcome = "solved"

@@ -133,6 +133,16 @@ class ConfigSummary:
         """Fraction of instances with a valid plan on every seed."""
         return self.solved / self.instances if self.instances else 0.0
 
+    @property
+    def was_run(self) -> bool:
+        """False when nothing was actually attempted for this configuration.
+
+        A backend nobody installed has no coverage — not a coverage of zero.
+        Printing 0% next to it would read as "this planner solved nothing",
+        which is a claim the data does not make.
+        """
+        return self.instances > 0
+
 
 def summarize(rows: list[RunRecord]) -> list[ConfigSummary]:
     """One :class:`ConfigSummary` per (adapter, configuration).

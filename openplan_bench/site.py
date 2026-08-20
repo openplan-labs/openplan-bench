@@ -220,6 +220,19 @@ def _leaderboard_table(summaries) -> str:
     )
     body: list[str] = []
     for summary in summaries:
+        if not summary.was_run:
+            # Nothing was attempted, so there is no coverage to report. Showing
+            # 0% would read as "solved nothing", which is not what happened.
+            body.append(
+                "<tr>"
+                f'<td class="name">{esc(summary.adapter)}:{esc(summary.label)}</td>'
+                f"<td>{esc(summary.family)}</td>"
+                f'<td class="num" data-sort="-1"><span class="pill not-installed">'
+                f"not run</span></td>"
+                + '<td class="num">—</td>' * 8
+                + "</tr>"
+            )
+            continue
         pct = 100.0 * summary.coverage
         invalid = (
             f' <span class="pill error" title="plans rejected by the validator">'

@@ -146,3 +146,19 @@ def test_empty_input_is_not_an_error():
     assert aggregate.summarize([]) == []
     assert aggregate.cactus([]) == {}
     assert aggregate.scaling([]) == {}
+
+
+def test_a_configuration_that_never_ran_has_no_coverage():
+    """Not "a coverage of zero" — printing 0% would claim it solved nothing."""
+    rows = [row("i1", "p", outcome="not-installed")]
+    summary = aggregate.summarize(rows)[0]
+    assert summary.was_run is False
+    assert summary.not_run == 1
+    assert summary.instances == 0
+
+
+def test_a_configuration_that_ran_and_failed_does_have_coverage():
+    rows = [row("i1", "p", outcome="timeout")]
+    summary = aggregate.summarize(rows)[0]
+    assert summary.was_run is True
+    assert summary.coverage == 0.0
