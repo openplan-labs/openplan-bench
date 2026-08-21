@@ -57,10 +57,12 @@ class CuplanAdapter(Adapter):
         ok, reason = missing(self.requires)
         if ok:
             return True, ""
-        # cuda-planning is not on PyPI yet, so name the git install explicitly.
+        # The repository is `cuda-planning`; the distribution is `cuplan`.
+        # Naming the repository here printed an install command that pip
+        # cannot resolve.
         return False, (
-            f"{reason}. Install with: pip install "
-            "'cuda-planning @ git+https://github.com/openplan-labs/cuda-planning'"
+            f"{reason}. Install with: pip install cuplan "
+            "(or 'cuplan[cuda12]' for a GPU)"
         )
 
     def instances(self, spec: dict[str, Any]) -> list[Instance]:

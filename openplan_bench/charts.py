@@ -2,9 +2,9 @@
 
 MIGRATION NOTE
 --------------
-Everything below is plotting, and plotting is not this project's job. When
-``planviz`` (the org's shared Frontier plotting library) is published, this
-module should become a thin shim over it: the palette dictionaries, the
+Everything below is plotting, and plotting is not this project's job.
+``planviz`` (the org's shared Frontier plotting library) shipped 1.0.0, so this
+module should now become a thin shim over it: the palette dictionaries, the
 ``_style`` context manager and the axis helpers all have direct equivalents
 there. Keeping every matplotlib call inside this one module is what makes that
 a delete-and-import rather than a refactor. Do not add plotting code anywhere

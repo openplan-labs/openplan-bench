@@ -34,10 +34,14 @@ everything else follows from:
   table.
 - A backend nobody installed is a `not-installed` row. A GPU that is not
   present is a `skipped` row. Gaps in the table are always explained.
-- A returned plan is only `solved` if an **independent validator** accepts it.
-  Classical plans are replayed through the grounded task; MAPF paths are
-  re-scanned for vertex and edge conflicts. A plan the validator rejects shows
-  as invalid and does not count towards coverage.
+- A returned plan is only `solved` if a **validator** accepts it. Classical
+  plans are replayed through the grounded task; MAPF paths are re-scanned for
+  vertex and edge conflicts. A planner's own claim of success is never
+  sufficient, and a plan the validator rejects shows as invalid and does not
+  count towards coverage. These validators ship with the planners rather than
+  being a third party — an error shared between a solver and its own checker
+  would not be caught here. Wiring in an external validator such as VAL is
+  [open work](https://github.com/openplan-labs/openplan-bench/issues).
 - An instance counts as solved for a configuration only when **every seed**
   solved it validly. A coverage number a re-run would not reproduce is not
   worth printing.
@@ -258,10 +262,10 @@ openplan_bench/
 └── adapters/       jupyddl · pymapf · cuplan · fake
 ```
 
-`charts.py` carries a migration note: when
-[`planviz`](https://github.com/openplan-labs/planviz) lands it should become a
-thin shim over it. Keeping every plotting call in one module is what makes that
-a delete-and-import rather than a refactor.
+`charts.py` carries a migration note:
+[`planviz`](https://github.com/openplan-labs/planviz) has since shipped 1.0.0,
+so this module should become a thin shim over it. Keeping every plotting call
+in one module is what makes that a delete-and-import rather than a refactor.
 
 ## Brand
 

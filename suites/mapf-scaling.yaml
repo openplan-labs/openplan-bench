@@ -6,9 +6,9 @@
 # coincidence: comparing solution quality across two libraries that each rolled
 # their own map from the same seed number compares two different problems.
 #
-# The cuplan group is expected to record `not-installed` on most machines
-# (cuda-planning is not on PyPI yet) and its CUDA arm is expected to record
-# `skipped` wherever no working device is found. Both are visible rows.
+# The cuplan group is expected to record `skipped` wherever no working CUDA
+# device is found, and `not-installed` on a machine without the package.
+# Both are visible rows.
 
 name: mapf-scaling
 title: MAPF — scaling with agent count
@@ -16,9 +16,11 @@ description: >
   Random-obstacle grids at 15% density, from 4 to 32 agents, over five seeds.
   Five pymapf solvers and both cuplan CPU solvers on the same generated
   instances. CBS and weighted CBS are optimal and bounded-suboptimal
-  respectively; PIBT and LaCAM are fast and incomplete; prioritized planning is
-  neither optimal nor complete. Expect the optimal solvers to fall off first —
-  that is the result, not a failure of the run.
+  respectively, on sum of costs. LaCAM (Okumura, 2023) is complete but not
+  optimal; PIBT (Okumura et al., 2022) is neither; prioritized planning is
+  neither. Completeness is a statement about eventual termination, not about
+  finishing inside this suite's 20-second budget. Expect the optimal solvers to
+  fall off first — that is the result, not a failure of the run.
 
 seeds: [0, 1, 2, 3, 4]
 repetitions: 1

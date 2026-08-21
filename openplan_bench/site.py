@@ -52,6 +52,23 @@ def esc(value: Any) -> str:
     return html.escape(str(value), quote=True)
 
 
+def clip(text: str, limit: int) -> str:
+    """Shorten ``text`` to ``limit`` without severing a word.
+
+    A plain slice cut an adapter's install hint mid-URL, so the published
+    page showed a command that 404s. Back off to the last space instead, and
+    mark the cut so a truncated note cannot be read as a complete one.
+    """
+    text = str(text)
+    if len(text) <= limit:
+        return text
+    head = text[:limit]
+    space = head.rfind(" ")
+    if space > limit // 2:
+        head = head[:space]
+    return head.rstrip(" ,;.") + " …"
+
+
 def fmt_time(seconds: float | None) -> str:
     if seconds is None:
         return "—"
@@ -214,7 +231,8 @@ def _leaderboard_table(summaries) -> str:
         '<th class="num">Coverage</th><th class="num">Solved</th>'
         '<th class="num">Instances</th><th class="num">Timeouts</th>'
         '<th class="num">Errors</th><th class="num">Unsolved</th>'
-        '<th class="num">Median time</th><th class="num">Total time (solved)</th>'
+        '<th class="num">Median time<br><small>solved only</small></th>'
+        '<th class="num">Total time<br><small>solved only</small></th>'
         '<th class="num">Expanded</th>'
         "</tr></thead>"
     )
@@ -264,6 +282,12 @@ def _leaderboard_table(summaries) -> str:
         + "<tbody>"
         + "".join(body)
         + "</tbody></table></div>"
+        + '<p class="caption">Both timing columns are computed over the '
+        "instances a configuration actually solved, so each row has a "
+        "different denominator and the columns are <strong>not</strong> "
+        "comparable across rows. A configuration that solves only the easy "
+        "instances will post the fastest time on this table. Read them "
+        "alongside coverage, never instead of it.</p>"
     )
 
 
@@ -276,7 +300,7 @@ def _cell_table(cells) -> str:
         '<th class="num">Median time</th><th class="num">Min</th><th class="num">Max</th>'
         '<th class="num">Cost</th><th class="num">Length</th>'
         '<th class="num">Makespan</th><th class="num">Expanded</th>'
-        '<th class="num">Seeds</th><th>Note</th>'
+        '<th class="num">Samples<br><small>seeds x reps</small></th><th>Note</th>'
         "</tr></thead>"
     )
     body: list[str] = []
@@ -304,7 +328,7 @@ def _cell_table(cells) -> str:
             f'<td class="num">{fmt_num(makespan)}</td>'
             f'<td class="num">{fmt_num(expanded)}</td>'
             f'<td class="num">{cell.n_solved}/{cell.n_measured or len(cell.rows)}</td>'
-            f"<td>{esc(note[:160])}</td>"
+            f"<td>{esc(clip(note, 160))}</td>"
             "</tr>"
         )
     return (

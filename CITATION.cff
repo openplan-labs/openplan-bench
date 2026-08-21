@@ -21,7 +21,7 @@ abstract: >-
   including runs that time out, error, or could not be attempted, so coverage
   figures are not inflated by omission. Each record carries the machine, the
   package versions, the seed and the harness commit that produced it. Solutions
-  are accepted only after independent validation, and an instance counts as
+  are accepted only after validation, and an instance counts as
   solved only when every seed solved it.
 keywords:
   - benchmarking

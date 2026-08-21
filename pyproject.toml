@@ -40,7 +40,7 @@ dependencies = [
 # tests and build the site on a machine that has none of them.
 pddl = ["jupyddl>=2.3.0"]
 mapf = ["pymapf>=0.8.0"]
-cuda = ["cuda-planning[cuda12]>=0.1.0"]
+cuda = ["cuplan[cuda12]>=0.1.0"]
 all = ["jupyddl>=2.3.0", "pymapf>=0.8.0"]
 dev = ["pytest>=7.4", "ruff>=0.5"]
 
