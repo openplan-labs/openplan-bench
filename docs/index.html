@@ -257,7 +257,7 @@ means</a> &middot; <a href="reproduce.html">How to reproduce this</a>.</p></div>
 </section>
 <section class="suite" id="mapf-scaling">
   <h2>MAPF — scaling with agent count</h2>
-  <p class="desc">Random-obstacle grids at 15% density, from 4 to 32 agents, over five seeds. Five pymapf solvers and both cuplan CPU solvers on the same generated instances. CBS and weighted CBS are optimal and bounded-suboptimal respectively; PIBT and LaCAM are fast and incomplete; prioritized planning is neither optimal nor complete. Expect the optimal solvers to fall off first — that is the result, not a failure of the run.</p>
+  <p class="desc">Random-obstacle grids at 15% density, from 4 to 32 agents, over five seeds. Five pymapf solvers and both cuplan CPU solvers on the same generated instances. CBS and weighted CBS are optimal and bounded-suboptimal respectively, on sum of costs. LaCAM (Okumura, 2023) is complete but not optimal; PIBT (Okumura et al., 2022) is neither; prioritized planning is neither. Completeness is a statement about eventual termination, not about finishing inside this suite&#x27;s 20-second budget. Expect the optimal solvers to fall off first — that is the result, not a failure of the run.</p>
   <p class="meta">11th Gen Intel(R) Core(TM) i7-11850H @ 2.50GHz (16 logical CPUs), Linux 6.8.0-136-generic (x86_64), Python 3.10.12, harness 0.1.0@62459c293440. Installed: jupyddl 2.3.0, matplotlib 3.10.9, numpy 2.2.6, openplan-bench 0.1.0, pymapf 0.8.0.<br>
      2026-08-20T22:02:51+00:00 &middot; results: <a href="https://github.com/openplan-labs/openplan-bench/blob/main/results/mapf-scaling/2026-08-20.csv">2026-08-20.csv</a></p>
 
@@ -319,7 +319,7 @@ means</a> &middot; <a href="reproduce.html">How to reproduce this</a>.</p></div>
       <code>results/</code> and the suite file that produced it.</p>
     <p>Colour, type and figures follow
       <a href="https://github.com/openplan-labs/branding">openplan-labs/branding</a>
-      (Frontier). Built 2026-08-21T11:02:31+00:00.</p>
+      (Frontier). Built 2026-08-21T11:12:13+00:00.</p>
   </div>
 </footer>
 <script src="assets/site.js"></script>
