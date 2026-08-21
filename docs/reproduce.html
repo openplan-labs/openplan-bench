@@ -34,9 +34,12 @@
 <p>Everything on the leaderboard comes from files in the repository. There is no
 hidden state and no database.</p>
 
-<pre><code>git clone https://github.com/openplan-labs/openplan-bench
+<pre><code>git clone https://github.com/openplan-labs/openplan-bench.git
 cd openplan-bench
-git clone https://github.com/openplan-labs/pddl-examples ../pddl-examples
+
+# The classical suites resolve corpus_root against the suite file, so the
+# corpus belongs at corpus/pddl-examples inside this checkout.
+git clone https://github.com/openplan-labs/pddl-examples corpus/pddl-examples
 
 python -m venv .venv &amp;&amp; source .venv/bin/activate
 pip install -e '.[all,dev]'
@@ -56,7 +59,11 @@ python -m openplan_bench site --results results/ --out docs/</code></pre>
     unevenly. Compare within one table.</li>
   <li><strong>Coverage may differ at the boundary.</strong> Instances that
     finished just inside the budget here may time out on a slower machine.
-    That is a real result and it will be recorded as a timeout.</li>
+    That is a real result and it will be recorded as a timeout. The budget
+    each suite was measured under is on
+    <a href="methodology.html#budgets">the methodology page</a> and in every
+    table's caption; changing <code>timeout_s</code> in a suite file changes
+    what the coverage column means, so say so if you do.</li>
   <li><strong>Node expansions, plan cost, plan length, makespan and validity
     will not differ.</strong> Those are deterministic given the instance and
     the seed. If they differ, something has genuinely changed &mdash; that is
@@ -72,11 +79,16 @@ python -m openplan_bench site --results results/ --out docs/</code></pre>
 <p>Results live in <code>results/&lt;suite&gt;/&lt;date&gt;.csv</code>, one row
 per measured run, never overwritten. <code>latest.json</code> beside them holds
 the same rows plus the suite header. Rows are wide on purpose: each carries the
-planner, instance, seed, outcome, metrics <em>and</em> the machine, package
-versions and harness SHA that produced it.</p>
+planner, instance, seed, outcome, metrics <em>and</em> the budget it ran under,
+the machine, the package versions and the harness SHA that produced it.</p>
+<p>Two columns are easy to confuse. <code>timeout_s</code> is the budget the run
+was given; <code>wall_time_s</code> is what was measured. On a
+<code>timeout</code> row that measurement is the elapsed time at which the run
+was stopped, which sits a little past the budget — it is not the budget, and it
+is not an estimate of how long a solution would have taken.</p>
 
 <pre><code>import openplan_bench.records as records
-rows = records.read_csv("results/classical-smoke/2026-08-21.csv")
+rows = records.read_csv("results/ci-weekly/2026-08-20.csv")
 print(sum(r.outcome == "timeout" for r in rows), "timeouts")</code></pre>
 
 <h3>Adding your own planner</h3>
@@ -93,7 +105,7 @@ interface is three methods and is documented in
       <code>results/</code> and the suite file that produced it.</p>
     <p>Colour, type and figures follow
       <a href="https://github.com/openplan-labs/branding">openplan-labs/branding</a>
-      (Frontier). Built 2026-08-21T11:12:13+00:00.</p>
+      (Frontier). Built 2026-08-21T15:37:19+00:00.</p>
   </div>
 </footer>
 <script src="assets/site.js"></script>

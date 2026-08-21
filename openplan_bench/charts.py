@@ -166,12 +166,22 @@ def _series_markers(labels) -> dict[str, str]:
 
 
 # ---------------------------------------------------------------------------
-def cactus_plot(series: dict[str, list[float]], out_dir: Path, dark: bool) -> Path:
+def cactus_plot(
+    series: dict[str, list[float]],
+    out_dir: Path,
+    dark: bool,
+    budget_s: float | None = None,
+) -> Path:
     """Instances solved against per-instance time budget.
 
     The competition figure. A configuration's curve ending early means it stops
     solving instances at all, not that it got slow — which is precisely the
     distinction a mean runtime hides.
+
+    ``budget_s`` draws the cap the suite actually ran under. Without it the
+    figure invites the reader to extrapolate every curve rightwards, which is
+    exactly the thing the budget forbids: past the dashed line nothing was
+    measured.
     """
     with _style(dark) as tokens:
         fig, ax = plt.subplots(figsize=(7.2, 4.4))
@@ -196,6 +206,15 @@ def cactus_plot(series: dict[str, list[float]], out_dir: Path, dark: bool) -> Pa
                     marker=markers[label],
                     markersize=5 if is_best else 4,
                     zorder=3 if is_best else 2,
+                )
+            if budget_s and budget_s > 0:
+                ax.axhline(
+                    budget_s,
+                    color=tokens["path"],
+                    linestyle="--",
+                    linewidth=1.2,
+                    zorder=1,
+                    label=f"budget ({budget_s:g} s)",
                 )
             ax.set_yscale("log")
             ax.set_xlabel("instances solved (all seeds valid)")
@@ -386,10 +405,15 @@ def render_suite(rows, out_dir: str | Path) -> list[Path]:
     counts = aggregate.outcome_counts(rows)
     curves = aggregate.scaling(rows, "n_agents")
     caps = aggregate.timeout_points(rows, "n_agents")
+    # The budget the rows were actually run under, not the one the suite file
+    # asks for. Where a suite gives its groups different budgets, the largest
+    # is the only cap that holds for the whole figure.
+    budgets = {float(row.timeout_s) for row in rows if row.timeout_s}
+    budget_s = max(budgets) if budgets else None
 
     written: list[Path] = []
     for dark in (False, True):
-        written.append(cactus_plot(series, out_dir, dark))
+        written.append(cactus_plot(series, out_dir, dark, budget_s))
         written.append(coverage_bars(summaries, out_dir, dark))
         written.append(outcome_bars(counts, out_dir, dark))
         if curves or caps:

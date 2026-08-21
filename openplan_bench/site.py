@@ -24,6 +24,7 @@ from typing import Any
 
 from . import aggregate, charts, provenance
 from .records import RunRecord, read_csv
+from .runner import GRACE_S
 
 TEMPLATES = Path(__file__).resolve().parent / "templates"
 
@@ -79,6 +80,13 @@ def fmt_time(seconds: float | None) -> str:
     return f"{seconds:.2f} s"
 
 
+def fmt_budget(seconds: float) -> str:
+    """A budget as a reader would say it: ``20 s``, ``500 ms``."""
+    if seconds >= 1:
+        return f"{seconds:g} s"
+    return f"{seconds * 1000:g} ms"
+
+
 def fmt_num(value: Any) -> str:
     if value is None or value == "":
         return "—"
@@ -125,6 +133,67 @@ class SuiteResults:
     @property
     def generated(self) -> str:
         return str(self.meta.get("generated_utc") or "")
+
+    @property
+    def stamped(self) -> str:
+        """What ``timestamp_utc`` actually says across these rows.
+
+        A schema-2 file carries one stamp for the whole run, repeated on every
+        row; from schema 3 each row is stamped as it is produced. Say which of
+        the two this file is rather than printing a date and letting the reader
+        assume per-row provenance.
+        """
+        stamps = sorted({row.timestamp_utc for row in self.rows if row.timestamp_utc})
+        if not stamps:
+            return "no run timestamp recorded"
+        if len(stamps) == 1:
+            return f"run stamped {stamps[0]} (one stamp for the whole run)"
+        return f"rows stamped {stamps[0]} to {stamps[-1]}"
+
+    @property
+    def budgets(self) -> list[tuple[float, int]]:
+        """Every distinct ``(wall-clock budget, memory cap)`` behind these rows.
+
+        Read off the rows, not off the suite file. The suite file records what
+        the harness was *asked* for; the rows record what was actually enforced
+        on the measurement, and where the two disagree the table has to show
+        the second one.
+        """
+        seen: list[tuple[float, int]] = []
+        for row in self.rows:
+            pair = (float(row.timeout_s), int(row.memory_limit_mb))
+            if pair not in seen:
+                seen.append(pair)
+        return sorted(seen)
+
+    @property
+    def budget(self) -> str:
+        """One sentence naming the budget every row in this suite ran under.
+
+        Coverage without a stated budget is not a number: "solved 9 of 18" says
+        nothing until you know whether the planner had twenty seconds or twenty
+        minutes. Every table on this site carries this line.
+        """
+        pairs = self.budgets
+        if not pairs:
+            return "No per-instance budget is recorded in these rows."
+        parts = [
+            f"{fmt_budget(timeout_s)} wall clock, "
+            + (
+                f"{memory_mb:,} MiB address space (RLIMIT_AS)"
+                if memory_mb > 0
+                else "no memory cap"
+            )
+            for timeout_s, memory_mb in pairs
+        ]
+        if len(parts) == 1:
+            return f"Per-instance budget: {parts[0]}. Enforced on every row below."
+        return (
+            "Per-instance budget differs across this suite's groups: "
+            + "; ".join(parts)
+            + ". Each row's own budget is in its timeout_s and "
+            "memory_limit_mb columns."
+        )
 
 
 def load_results(results_dir: str | Path = "results") -> list[SuiteResults]:
@@ -222,10 +291,11 @@ def _figure(stem: str, caption: str, suite: str) -> str:
 """
 
 
-def _leaderboard_table(summaries) -> str:
+def _leaderboard_table(summaries, budget: str) -> str:
     if not summaries:
         return '<p class="empty">No configuration produced a row.</p>'
     head = (
+        f"<caption>{esc(budget)}</caption>"
         "<thead><tr>"
         "<th>Configuration</th><th>Family</th>"
         '<th class="num">Coverage</th><th class="num">Solved</th>'
@@ -233,7 +303,7 @@ def _leaderboard_table(summaries) -> str:
         '<th class="num">Errors</th><th class="num">Unsolved</th>'
         '<th class="num">Median time<br><small>solved only</small></th>'
         '<th class="num">Total time<br><small>solved only</small></th>'
-        '<th class="num">Expanded</th>'
+        '<th class="num">Expanded<br><small>solved only</small></th>'
         "</tr></thead>"
     )
     body: list[str] = []
@@ -282,19 +352,25 @@ def _leaderboard_table(summaries) -> str:
         + "<tbody>"
         + "".join(body)
         + "</tbody></table></div>"
-        + '<p class="caption">Both timing columns are computed over the '
-        "instances a configuration actually solved, so each row has a "
-        "different denominator and the columns are <strong>not</strong> "
-        "comparable across rows. A configuration that solves only the easy "
-        "instances will post the fastest time on this table. Read them "
-        "alongside coverage, never instead of it.</p>"
+        + '<p class="caption"><strong>Coverage</strong> is Solved &divide; '
+        "Instances, and both are columns here so the denominator is never "
+        "implied. <strong>Median time</strong>, <strong>Total time</strong> "
+        "and <strong>Expanded</strong> are computed over the instances a "
+        "configuration actually solved, so each row has a different "
+        "denominator and none of those three are comparable across rows — "
+        "including when you sort by them. A configuration that solves only "
+        "the easy instances posts the fastest time and the smallest node "
+        "count on this table; that is an artefact of the subset it solved, "
+        "not a result. Read them against Coverage and Instances, never "
+        "instead of them.</p>"
     )
 
 
-def _cell_table(cells) -> str:
+def _cell_table(cells, budget: str) -> str:
     if not cells:
         return '<p class="empty">No run was recorded for this suite.</p>'
     head = (
+        f"<caption>{esc(budget)}</caption>"
         "<thead><tr>"
         "<th>Instance</th><th>Configuration</th><th>Outcome</th>"
         '<th class="num">Median time</th><th class="num">Min</th><th class="num">Max</th>'
@@ -337,6 +413,18 @@ def _cell_table(cells) -> str:
         + "<tbody>"
         + "".join(body)
         + "</tbody></table></div>"
+        + '<p class="caption">Median, Min and Max are over the <strong>solved'
+        "</strong> repetitions of that cell only, so a partially-solved cell "
+        "times the repetitions that finished and a cell that never solved "
+        "shows &mdash;. A <span class=\"pill timeout\">timeout</span> row is "
+        "therefore absent from every time column here: what it recorded is "
+        "<code>wall_time_s</code> in the results file, the elapsed time at "
+        "which the run was <em>stopped</em> — slightly past the budget, "
+        "because a planner notices its own limit and unwinds — and never an "
+        "estimate of how long a solution would have taken. The budget itself "
+        "is the separate <code>timeout_s</code> column. Sorting this table "
+        "reorders rows whose Samples denominators differ; the Samples column "
+        "is shown so that is visible.</p>"
     )
 
 
@@ -384,13 +472,14 @@ def _suite_section(result: SuiteResults, index: int) -> str:
                 "cactus",
                 "Instances solved as the per-instance time budget grows. "
                 "A curve that stops has run out of instances it can solve, "
-                "not out of speed.",
+                "not out of speed. The dashed line is the budget this suite "
+                f"actually ran under. {result.budget}",
                 result.name,
             ),
             _figure(
                 "coverage",
                 "Instances solved on every seed, with the timed-out and "
-                "unsolved remainder broken out.",
+                f"unsolved remainder broken out. {result.budget}",
                 result.name,
             ),
             _figure(
@@ -402,8 +491,10 @@ def _suite_section(result: SuiteResults, index: int) -> str:
             _figure(
                 "scaling",
                 "Median wall time against agent count; the band is the observed "
-                "min–max over seeds. Hollow triangles mark cells that hit the "
-                "budget.",
+                "min–max over seeds, and every curve is drawn only over the "
+                "agent counts that solver solved on every seed, so two curves "
+                "of different length cover different instance sets. Hollow "
+                f"triangles mark cells that hit the budget. {result.budget}",
                 result.name,
             )
             if any(r.family == "mapf" for r in rows)
@@ -422,7 +513,9 @@ def _suite_section(result: SuiteResults, index: int) -> str:
   <h2>{esc(result.title)}{badge}</h2>
   <p class="desc">{esc(result.description)}</p>
   <p class="meta">{esc(result.machine)}<br>
-     {esc(result.generated)} &middot; results: {history_links or "—"}</p>
+     <strong>{esc(result.budget)}</strong><br>
+     {esc(result.stamped)} &middot; published {esc(result.generated)} &middot;
+     results: {history_links or "—"}</p>
 {runner_note}
   <div class="stats">
     <div class="stat"><span class="k">Rows recorded</span><span class="v">{total}</span></div>
@@ -432,9 +525,14 @@ def _suite_section(result: SuiteResults, index: int) -> str:
     <div class="stat"><span class="k">Errored</span><span class="v">{counts.get("error", 0)}</span></div>
     <div class="stat"><span class="k">Not run</span><span class="v">{counts.get("not-installed", 0) + counts.get("skipped", 0)}</span></div>
   </div>
+  <p class="caption">These six count <strong>rows</strong> — one per
+    (configuration, instance, seed, repetition). The Solved column in the
+    leaderboard below counts <strong>instances</strong>, and only those a
+    configuration solved on every seed, so the two numbers are different
+    measurements of different things and will not agree.</p>
 
   <h3>Leaderboard</h3>
-{_leaderboard_table(summaries)}
+{_leaderboard_table(summaries, result.budget)}
 
   <h3>Figures</h3>
   <div class="figs">
@@ -443,7 +541,7 @@ def _suite_section(result: SuiteResults, index: int) -> str:
   <h3>Every instance</h3>
   <div data-tablescope="{index}">
 {_controls(sorted(counts), str(index))}
-{_cell_table(cells)}
+{_cell_table(cells, result.budget)}
   </div>
 </section>
 """
@@ -474,9 +572,43 @@ means</a> &middot; <a href="reproduce.html">How to reproduce this</a>.</p></div>
     return "".join(parts)
 
 
+def _budget_table(results: list[SuiteResults]) -> str:
+    """Every published suite's per-instance budget, read from its own rows."""
+    if not results:
+        return '<p class="empty">No results are committed yet.</p>'
+    rows_out: list[str] = []
+    for result in results:
+        pairs = result.budgets
+        # A suite whose groups carry different budgets gets every one of them
+        # in the cell. Showing the first would be a caption that is true of
+        # some of the rows and false of the rest.
+        wall = " / ".join(fmt_budget(t) for t, _ in pairs) or "—"
+        mem = " / ".join(f"{m:,} MiB" if m else "none" for _, m in pairs) or "—"
+        rows_out.append(
+            "<tr>"
+            f'<td class="name">{esc(result.title)}</td>'
+            f'<td class="num">{esc(wall)}</td>'
+            f'<td class="num">{esc(mem)}</td>'
+            f'<td class="num">{len(result.rows)}</td>'
+            "</tr>"
+        )
+    body = "".join(rows_out)
+    return (
+        '<div class="tablewrap"><table>'
+        "<caption>Read from the committed rows, not from the suite files — "
+        "these are the budgets the measurements were actually taken under."
+        "</caption>"
+        "<thead><tr><th>Suite</th><th class=\"num\">Wall clock</th>"
+        '<th class="num">Address space</th><th class="num">Rows</th>'
+        "</tr></thead><tbody>" + body + "</tbody></table></div>"
+    )
+
+
 def render_methodology(results: list[SuiteResults]) -> str:
     machines = sorted({r.machine for r in results}) or ["no results committed yet"]
     machine_items = "\n".join(f"    <li><code>{esc(m)}</code></li>" for m in machines)
+    budget_table = _budget_table(results)
+    provenance_grace = GRACE_S
     return (
         _head("Methodology", "methodology.html")
         + f"""<div class="prose">
@@ -499,10 +631,16 @@ next to the wins because that is the comparison a reader needs.</p>
     incomplete planner this is data, not a bug: it means the search strategy
     failed on this instance, not that the instance is unsolvable.</dd>
   <dt>timeout</dt>
-  <dd>The wall-clock budget was exhausted. The recorded time is the
-    <em>budget</em>, never an extrapolation of how long the run would have
-    taken. Solvability is unknown. This is the single most important
-    distinction on the page: a timeout is not a proof of unsolvability.</dd>
+  <dd>The wall-clock budget was exhausted. <strong>Two numbers are recorded and
+    they are not the same one.</strong> <code>timeout_s</code> is the budget the
+    run was given. <code>wall_time_s</code> is the elapsed time at which the run
+    was actually stopped — a little <em>past</em> the budget, because a planner
+    notices its own limit and unwinds, and so it is a measurement rather than a
+    constant. Neither is an extrapolation of how long a solution would have
+    taken; solvability is unknown. This is the single most important distinction
+    on the page: a timeout is not a proof of unsolvability. Timing statistics in
+    the tables are computed from solved runs only, so a timeout moves coverage
+    and nothing else.</dd>
   <dt>memory</dt>
   <dd>The address-space limit fired, or the process was killed by the OOM
     killer. As with a timeout, solvability is unknown.</dd>
@@ -546,13 +684,33 @@ as failures.</p>
     mean runtime makes a planner look faster as it starts failing.</li>
 </ul>
 
+<h3 id="budgets">Budgets</h3>
+<p>A coverage number is meaningless without the budget it was measured under:
+&ldquo;solved 9 of 18&rdquo; says nothing until you know whether the planner had
+twenty seconds or twenty minutes. Every table on this site carries its suite's
+budget in its caption; this is all of them in one place.</p>
+{budget_table}
+<p>The wall-clock budget is enforced twice — the planner is asked to stop itself
+at it, and the harness kills the child {provenance_grace:g}&nbsp;s later if it
+has not. The address-space figure is a hard <code>RLIMIT_AS</code> set inside
+the child before the planner is imported, so exceeding it produces a
+<span class="pill memory">memory</span> row rather than a swapping machine and a
+meaningless sweep.</p>
+
 <h3>Hardware these numbers came from</h3>
 <ul class="tight">
 {machine_items}
 </ul>
-<p>Every row carries its own CPU model, platform, Python version, package
-versions, timestamp, seed and the harness git SHA, so results files from
-different machines stay interpretable after they are concatenated.</p>
+<p>Every row carries the CPU model, platform, Python version, package versions,
+seed and harness git SHA it was produced under, so results files from different
+machines stay interpretable after they are concatenated.</p>
+<p><code>timestamp_utc</code> is the exception and is worth stating exactly:
+in a schema&nbsp;2 results file it is <strong>one stamp per suite run</strong>,
+taken when the run started and copied onto every row of that file — not a
+per-row clock reading, and not the moment any individual measurement was taken.
+Rows written from schema&nbsp;3 onwards are stamped as each one is produced.
+The published tables above therefore show a run start, not a per-row time, and
+say so.</p>
 
 <h3>What this does <em>not</em> measure</h3>
 <div class="note warn"><p>Read this section before quoting a number.</p></div>
@@ -584,11 +742,28 @@ different machines stay interpretable after they are concatenated.</p>
     )
 
 
+def _example_csv(results: list[SuiteResults]) -> str:
+    """A results path that exists, taken from the committed files.
+
+    Hardcoding a date here published a snippet that raises ``FileNotFoundError``
+    on a fresh clone, which is a bad first impression for a page whose whole
+    claim is that the numbers are reproducible.
+    """
+    for result in results:
+        history = [str(name) for name in (result.meta.get("history") or [])]
+        source = str(result.meta.get("source_csv") or "")
+        name = source if source in history else (history[-1] if history else "")
+        if name:
+            return f"results/{result.name}/{name}"
+    return "results/classical-smoke/<date>.csv"
+
+
 def render_reproduce(results: list[SuiteResults]) -> str:
     suites = "\n".join(
         f"python -m openplan_bench run suites/{esc(r.name)}.yaml --out results/"
         for r in results
     ) or "python -m openplan_bench run suites/classical-smoke.yaml --out results/"
+    example_csv = _example_csv(results)
     return (
         _head("Reproduce", "reproduce.html")
         + f"""<div class="prose">
@@ -596,9 +771,12 @@ def render_reproduce(results: list[SuiteResults]) -> str:
 <p>Everything on the leaderboard comes from files in the repository. There is no
 hidden state and no database.</p>
 
-<pre><code>git clone {REPO}
+<pre><code>git clone {REPO}.git
 cd openplan-bench
-git clone https://github.com/openplan-labs/pddl-examples ../pddl-examples
+
+# The classical suites resolve corpus_root against the suite file, so the
+# corpus belongs at corpus/pddl-examples inside this checkout.
+git clone https://github.com/openplan-labs/pddl-examples corpus/pddl-examples
 
 python -m venv .venv &amp;&amp; source .venv/bin/activate
 pip install -e '.[all,dev]'
@@ -614,7 +792,11 @@ python -m openplan_bench site --results results/ --out docs/</code></pre>
     unevenly. Compare within one table.</li>
   <li><strong>Coverage may differ at the boundary.</strong> Instances that
     finished just inside the budget here may time out on a slower machine.
-    That is a real result and it will be recorded as a timeout.</li>
+    That is a real result and it will be recorded as a timeout. The budget
+    each suite was measured under is on
+    <a href="methodology.html#budgets">the methodology page</a> and in every
+    table's caption; changing <code>timeout_s</code> in a suite file changes
+    what the coverage column means, so say so if you do.</li>
   <li><strong>Node expansions, plan cost, plan length, makespan and validity
     will not differ.</strong> Those are deterministic given the instance and
     the seed. If they differ, something has genuinely changed &mdash; that is
@@ -630,11 +812,16 @@ python -m openplan_bench site --results results/ --out docs/</code></pre>
 <p>Results live in <code>results/&lt;suite&gt;/&lt;date&gt;.csv</code>, one row
 per measured run, never overwritten. <code>latest.json</code> beside them holds
 the same rows plus the suite header. Rows are wide on purpose: each carries the
-planner, instance, seed, outcome, metrics <em>and</em> the machine, package
-versions and harness SHA that produced it.</p>
+planner, instance, seed, outcome, metrics <em>and</em> the budget it ran under,
+the machine, the package versions and the harness SHA that produced it.</p>
+<p>Two columns are easy to confuse. <code>timeout_s</code> is the budget the run
+was given; <code>wall_time_s</code> is what was measured. On a
+<code>timeout</code> row that measurement is the elapsed time at which the run
+was stopped, which sits a little past the budget — it is not the budget, and it
+is not an estimate of how long a solution would have taken.</p>
 
 <pre><code>import openplan_bench.records as records
-rows = records.read_csv("results/classical-smoke/2026-08-21.csv")
+rows = records.read_csv("{esc(example_csv)}")
 print(sum(r.outcome == "timeout" for r in rows), "timeouts")</code></pre>
 
 <h3>Adding your own planner</h3>

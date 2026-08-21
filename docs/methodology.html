@@ -49,10 +49,16 @@ next to the wins because that is the comparison a reader needs.</p>
     incomplete planner this is data, not a bug: it means the search strategy
     failed on this instance, not that the instance is unsolvable.</dd>
   <dt>timeout</dt>
-  <dd>The wall-clock budget was exhausted. The recorded time is the
-    <em>budget</em>, never an extrapolation of how long the run would have
-    taken. Solvability is unknown. This is the single most important
-    distinction on the page: a timeout is not a proof of unsolvability.</dd>
+  <dd>The wall-clock budget was exhausted. <strong>Two numbers are recorded and
+    they are not the same one.</strong> <code>timeout_s</code> is the budget the
+    run was given. <code>wall_time_s</code> is the elapsed time at which the run
+    was actually stopped — a little <em>past</em> the budget, because a planner
+    notices its own limit and unwinds, and so it is a measurement rather than a
+    constant. Neither is an extrapolation of how long a solution would have
+    taken; solvability is unknown. This is the single most important distinction
+    on the page: a timeout is not a proof of unsolvability. Timing statistics in
+    the tables are computed from solved runs only, so a timeout moves coverage
+    and nothing else.</dd>
   <dt>memory</dt>
   <dd>The address-space limit fired, or the process was killed by the OOM
     killer. As with a timeout, solvability is unknown.</dd>
@@ -96,14 +102,34 @@ as failures.</p>
     mean runtime makes a planner look faster as it starts failing.</li>
 </ul>
 
+<h3 id="budgets">Budgets</h3>
+<p>A coverage number is meaningless without the budget it was measured under:
+&ldquo;solved 9 of 18&rdquo; says nothing until you know whether the planner had
+twenty seconds or twenty minutes. Every table on this site carries its suite's
+budget in its caption; this is all of them in one place.</p>
+<div class="tablewrap"><table><caption>Read from the committed rows, not from the suite files — these are the budgets the measurements were actually taken under.</caption><thead><tr><th>Suite</th><th class="num">Wall clock</th><th class="num">Address space</th><th class="num">Rows</th></tr></thead><tbody><tr><td class="name">Weekly regression suite</td><td class="num">15 s</td><td class="num">2,048 MiB</td><td class="num">68</td></tr><tr><td class="name">Classical planning — coverage</td><td class="num">20 s</td><td class="num">3,072 MiB</td><td class="num">108</td></tr><tr><td class="name">Classical planning — smoke</td><td class="num">30 s</td><td class="num">3,072 MiB</td><td class="num">234</td></tr><tr><td class="name">MAPF — obstacle density</td><td class="num">20 s</td><td class="num">3,072 MiB</td><td class="num">150</td></tr><tr><td class="name">MAPF — scaling with agent count</td><td class="num">20 s</td><td class="num">3,072 MiB</td><td class="num">400</td></tr></tbody></table></div>
+<p>The wall-clock budget is enforced twice — the planner is asked to stop itself
+at it, and the harness kills the child 15&nbsp;s later if it
+has not. The address-space figure is a hard <code>RLIMIT_AS</code> set inside
+the child before the planner is imported, so exceeding it produces a
+<span class="pill memory">memory</span> row rather than a swapping machine and a
+meaningless sweep.</p>
+
 <h3>Hardware these numbers came from</h3>
 <ul class="tight">
     <li><code>11th Gen Intel(R) Core(TM) i7-11850H @ 2.50GHz (16 logical CPUs), Linux 6.8.0-136-generic (x86_64), Python 3.10.12, harness 0.1.0@62459c293440. Installed: jupyddl 2.3.0, matplotlib 3.10.9, numpy 2.2.6, openplan-bench 0.1.0, pymapf 0.8.0.</code></li>
     <li><code>AMD EPYC 7763 64-Core Processor (4 logical CPUs), Linux 6.17.0-1022-azure (x86_64), Python 3.12.14, harness 0.1.0@d2a32a74ad18. Installed: jupyddl 2.3.0, matplotlib 3.11.1, numpy 2.5.2, openplan-bench 0.1.0, pymapf 0.8.0.</code></li>
 </ul>
-<p>Every row carries its own CPU model, platform, Python version, package
-versions, timestamp, seed and the harness git SHA, so results files from
-different machines stay interpretable after they are concatenated.</p>
+<p>Every row carries the CPU model, platform, Python version, package versions,
+seed and harness git SHA it was produced under, so results files from different
+machines stay interpretable after they are concatenated.</p>
+<p><code>timestamp_utc</code> is the exception and is worth stating exactly:
+in a schema&nbsp;2 results file it is <strong>one stamp per suite run</strong>,
+taken when the run started and copied onto every row of that file — not a
+per-row clock reading, and not the moment any individual measurement was taken.
+Rows written from schema&nbsp;3 onwards are stamped as each one is produced.
+The published tables above therefore show a run start, not a per-row time, and
+say so.</p>
 
 <h3>What this does <em>not</em> measure</h3>
 <div class="note warn"><p>Read this section before quoting a number.</p></div>
@@ -138,7 +164,7 @@ different machines stay interpretable after they are concatenated.</p>
       <code>results/</code> and the suite file that produced it.</p>
     <p>Colour, type and figures follow
       <a href="https://github.com/openplan-labs/branding">openplan-labs/branding</a>
-      (Frontier). Built 2026-08-21T11:12:13+00:00.</p>
+      (Frontier). Built 2026-08-21T15:37:19+00:00.</p>
   </div>
 </footer>
 <script src="assets/site.js"></script>

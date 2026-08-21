@@ -9,6 +9,10 @@ from openplan_bench.records import RunRecord, write_csv, write_json
 
 
 def _results(tmp_path):
+    # Every row carries the budget it was run under, because the harness stamps
+    # it onto every row including the ones it never attempted. The site reads
+    # the budget off these columns, so a fixture without them would be testing
+    # a shape the harness never produces.
     rows = [
         RunRecord(
             suite="demo",
@@ -22,6 +26,8 @@ def _results(tmp_path):
             solved=True,
             valid=True,
             wall_time_s=0.42,
+            timeout_s=20.0,
+            memory_limit_mb=3072,
             cost=4,
             plan_length=4,
             expanded=17,
@@ -36,9 +42,11 @@ def _results(tmp_path):
             planner="astar",
             heuristic="lmcut",
             outcome="timeout",
-            wall_time_s=20.0,
+            # Measured elapsed at the stop, past the budget — not the budget.
+            wall_time_s=20.14,
             timeout_s=20.0,
-            note="budget exhausted",
+            memory_limit_mb=3072,
+            note="planner stopped on its internal time limit",
         ),
         RunRecord(
             suite="demo",
@@ -47,6 +55,8 @@ def _results(tmp_path):
             instance="random_obstacles/16x16/n8/d0.15",
             planner="pibt",
             outcome="skipped",
+            timeout_s=20.0,
+            memory_limit_mb=3072,
             note="no working CUDA device",
         ),
     ]
@@ -102,6 +112,68 @@ def test_every_page_is_theme_aware_and_self_contained(tmp_path):
         # No external script or stylesheet beyond the branding marks.
         assert "cdn." not in page
         assert "<script src=\"assets/site.js\"></script>" in page
+
+
+def test_every_suite_table_states_its_budget(tmp_path):
+    """Coverage without a stated budget is not a number.
+
+    The budget is read off the rows, so it cannot drift from the measurement
+    the way a hand-written suite description can.
+    """
+    site.build(_results(tmp_path), tmp_path / "docs", render_figures=False)
+    index = (tmp_path / "docs" / "index.html").read_text()
+
+    # One caption per table, and the suite has two of them.
+    assert index.count("Per-instance budget: 20 s wall clock") >= 2
+    assert "<caption>" in index
+    # The methodology page repeats every suite's budget in one table.
+    page = (tmp_path / "docs" / "methodology.html").read_text()
+    assert "Budgets" in page
+    assert "20 s" in page
+
+
+def test_the_timeout_column_says_what_it_holds(tmp_path):
+    """The docs and the data have to agree on what wall_time_s is."""
+    site.build(_results(tmp_path), tmp_path / "docs", render_figures=False)
+    page = (tmp_path / "docs" / "methodology.html").read_text().replace("\n", " ")
+    assert "<code>timeout_s</code> is the budget" in page
+    assert "elapsed time at which the run" in page
+    index = (tmp_path / "docs" / "index.html").read_text().replace("\n", " ")
+    assert "wall_time_s" in index
+
+
+def test_timestamp_provenance_is_described_as_recorded(tmp_path):
+    """The demo rows share one stamp; the page must not imply a per-row clock."""
+    results = site.load_results(_results(tmp_path))
+    # Every demo row is unstamped, so there is nothing to claim.
+    assert results[0].stamped == "no run timestamp recorded"
+
+    from openplan_bench.records import RunRecord
+
+    one = site.SuiteResults(
+        name="x", rows=[RunRecord(timestamp_utc="2026-01-01T00:00:00+00:00")], meta={}
+    )
+    assert "one stamp for the whole run" in one.stamped
+    many = site.SuiteResults(
+        name="x",
+        rows=[
+            RunRecord(timestamp_utc="2026-01-01T00:00:00+00:00"),
+            RunRecord(timestamp_utc="2026-01-01T00:00:09+00:00"),
+        ],
+        meta={},
+    )
+    assert many.stamped.startswith("rows stamped")
+
+
+def test_reproduce_page_clones_the_right_url_and_names_a_real_file(tmp_path):
+    """A snippet that 404s or FileNotFoundErrors is not a reproduction recipe."""
+    site.build(_results(tmp_path), tmp_path / "docs", render_figures=False)
+    page = (tmp_path / "docs" / "reproduce.html").read_text()
+    assert "git clone https://github.com/openplan-labs/openplan-bench.git" in page
+    # The corpus goes where the suite files actually resolve corpus_root to.
+    assert "corpus/pddl-examples" in page
+    # The example path is taken from the committed results, never hardcoded.
+    assert "results/demo/2026-01-01.csv" in page
 
 
 def test_methodology_states_what_is_not_measured(tmp_path):
