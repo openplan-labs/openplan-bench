@@ -159,9 +159,14 @@ def execute(job: Job, adapter: Adapter, python: str | None = None) -> RunRecord:
             f"killed after {job.timeout_s + GRACE_S:g}s "
             f"({job.timeout_s:g}s budget + {GRACE_S:g}s grace)",
         )
-        # The budget is what we report, never an extrapolation of what it
-        # "would have" taken. A cactus plot reads this as "did not finish".
-        record.wall_time_s = job.timeout_s
+        # What we report is what we measured: the elapsed time at the moment
+        # the child was killed. Never an extrapolation of what the run "would
+        # have" taken, and never the budget dressed up as a measurement — the
+        # budget is already in `timeout_s`, and a column that silently held one
+        # of two different quantities depending on which path killed the run is
+        # a column nobody can aggregate. A cactus plot reads this as "did not
+        # finish" either way.
+        record.wall_time_s = time.perf_counter() - started
         return record
 
     payload = _parse_child(completed.stdout)
@@ -200,7 +205,13 @@ def run_suite(
 ) -> list[RunRecord]:
     """Run every group in ``suite`` and return one row per requested run."""
     say = on_message or (lambda _msg: None)
+    # Machine, versions and git SHA are fixed for the whole run, so they are
+    # collected once. The timestamp is not: it is stamped per row below, at the
+    # moment that row is produced. Copying one start-of-run stamp onto every
+    # row — which is what this did until schema 3 — advertises per-row
+    # provenance the file does not actually carry.
     prov = provenance.collect()
+    prov.pop("timestamp_utc", None)
     rows: list[RunRecord] = []
 
     for group in suite.groups:
@@ -230,6 +241,7 @@ def run_suite(
                     record = execute(job, adapter, python=python)
             record.suite = suite.name
             record.with_provenance(prov)
+            record.timestamp_utc = provenance.now_utc()
             rows.append(record)
             if on_record is not None:
                 on_record(record)

@@ -9,7 +9,9 @@ of a CSV to someone and they can tell you what produced it.
 Outcomes are a closed vocabulary (:data:`OUTCOMES`). In particular a run that
 hits its wall-clock budget is recorded as ``timeout``, never dropped: "we
 stopped looking" and "no plan exists" are different facts and the leaderboard
-must not conflate them.
+must not conflate them. Such a row keeps both numbers, and they are not the
+same one: ``timeout_s`` is the budget it was given, ``wall_time_s`` is the
+elapsed time at which it was actually stopped.
 """
 
 from __future__ import annotations
@@ -20,7 +22,17 @@ from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 2
+#: Bumped when the *meaning* of a column changes, not when one is added —
+#: :func:`read_csv` already tolerates new and missing columns.
+#:
+#: 2 → 3: ``timestamp_utc`` used to be collected once per suite run and copied
+#: onto every row of the file, so a schema-2 results file carries one stamp
+#: repeated N times: the moment the run started, not the moment each
+#: measurement was taken. From 3 it is stamped as each row is produced. Files
+#: already committed keep their recorded ``schema_version``; reading a 2 means
+#: reading a per-run stamp, and anything that treats it as a per-row clock is
+#: wrong about those files.
+SCHEMA_VERSION = 3
 
 #: Every terminal state a single measured run can be in.
 OUTCOMES = (
@@ -59,13 +71,24 @@ class RunRecord:
     # --- how it was run ---------------------------------------------------
     seed: int = 0
     repetition: int = 0
+    #: The wall-clock **budget** this run was given, in seconds. A constant
+    #: taken from the suite file — never a measurement. Compare
+    #: :attr:`wall_time_s`, which is the measurement.
     timeout_s: float = 0.0
+    #: The hard ``RLIMIT_AS`` ceiling in MiB, or 0 for no cap.
     memory_limit_mb: int = 0
 
     # --- what happened ----------------------------------------------------
     outcome: str = "error"
     solved: bool = False
     valid: bool = False
+    #: **Measured** elapsed wall-clock seconds, always. On a ``solved`` or
+    #: ``unsolved`` row that is how long the planner took. On a ``timeout`` or
+    #: ``memory`` row it is the elapsed time at which the run was *stopped* —
+    #: which lands a little past :attr:`timeout_s`, because a planner notices
+    #: its own limit and unwinds — and it is neither the budget nor an
+    #: extrapolation of how long a solution would have taken. Aggregations time
+    #: solved runs only for exactly this reason.
     wall_time_s: float = 0.0
 
     # --- what it cost (None where the family has no such notion) ----------
@@ -82,6 +105,9 @@ class RunRecord:
     note: str = ""
 
     # --- under what conditions -------------------------------------------
+    #: When this row was produced, ISO-8601 UTC. Per row from
+    #: :data:`SCHEMA_VERSION` 3 onwards; in a schema-2 file it is one stamp for
+    #: the whole suite run, taken at its start and repeated on every row.
     timestamp_utc: str = ""
     harness_version: str = ""
     harness_sha: str = ""

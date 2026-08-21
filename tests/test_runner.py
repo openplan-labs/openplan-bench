@@ -11,6 +11,7 @@ import textwrap
 
 import pytest
 
+from openplan_bench import runner
 from openplan_bench.adapters import get_adapter
 from openplan_bench.runner import plan_group, run_suite, save
 from openplan_bench.suite import SuiteError, load_suite
@@ -62,6 +63,36 @@ def test_rows_carry_provenance(tmp_path):
     assert row.wall_time_s > 0
 
 
+def test_each_row_is_stamped_when_it_is_produced(tmp_path):
+    """The schema advertises a per-row timestamp, so record one.
+
+    Collecting one stamp at the start of the run and copying it onto every row
+    — which is what schema 2 did — makes a results file claim provenance it
+    does not carry. The stamps must be non-decreasing in the order the rows
+    were measured.
+    """
+    suite = write_suite(
+        tmp_path,
+        """
+        name: stamped
+        seeds: [0]
+        repetitions: 4
+        groups:
+          - adapter: fake
+            instances: [{id: a}, {id: b}]
+            planners: [{planner: p}]
+        """,
+    )
+    rows = run_suite(suite)
+    stamps = [row.timestamp_utc for row in rows]
+    assert all(stamps)
+    assert stamps == sorted(stamps)
+    from openplan_bench.records import SCHEMA_VERSION
+
+    assert all(row.schema_version == SCHEMA_VERSION for row in rows)
+    assert SCHEMA_VERSION >= 3
+
+
 def test_repetitions_are_recorded_separately(tmp_path):
     suite = write_suite(
         tmp_path,
@@ -98,8 +129,15 @@ def test_a_raising_adapter_becomes_an_error_row(tmp_path):
     assert "asked to fail" in rows[0].error
 
 
-def test_a_hanging_run_becomes_a_timeout_row_at_the_budget(tmp_path):
-    """The row must exist, say 'timeout', and report the budget — not a guess."""
+def test_a_hanging_run_becomes_a_timeout_row_carrying_budget_and_elapsed(tmp_path):
+    """The row must exist, say 'timeout', and keep the budget and the elapsed
+    time in separate columns.
+
+    ``timeout_s`` is the budget the run was given; ``wall_time_s`` is measured,
+    and on a killed run it is the elapsed time at the kill — past the budget by
+    the grace period. Neither is a guess at how long a solution would have
+    taken, and the two must not be conflated into one column.
+    """
     suite = write_suite(
         tmp_path,
         """
@@ -118,7 +156,10 @@ def test_a_hanging_run_becomes_a_timeout_row_at_the_budget(tmp_path):
     assert len(rows) == 1
     assert rows[0].outcome == "timeout"
     assert rows[0].solved is False
-    assert rows[0].wall_time_s == pytest.approx(1.0)
+    assert rows[0].timeout_s == pytest.approx(1.0)
+    # Measured, and past the budget: the child was killed at budget + grace.
+    assert rows[0].wall_time_s >= 1.0
+    assert rows[0].wall_time_s == pytest.approx(1.0 + runner.GRACE_S, abs=5.0)
     assert "grace" in rows[0].note
 
 
