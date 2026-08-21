@@ -162,3 +162,50 @@ def test_a_configuration_that_ran_and_failed_does_have_coverage():
     summary = aggregate.summarize(rows)[0]
     assert summary.was_run is True
     assert summary.coverage == 0.0
+
+
+def test_the_grid_size_in_an_instance_id_is_readable():
+    """``16x16`` leads with its dimension, so the prefix rule never saw it.
+
+    While it did not parse, nothing could tell that a suite varied its grid,
+    and a runtime curve pooled two grid sizes at every agent count with no
+    caption saying so.
+    """
+    assert aggregate.parse_token("random_obstacles/16x16/n8/d0.15", "x") == 16.0
+    assert aggregate.parse_token("random_obstacles/24x24/n8/d0.15", "x") == 24.0
+    assert aggregate.parse_token("random_obstacles/16x16/n8/d0.15", "n") == 8.0
+    assert aggregate.parse_token("random_obstacles/16x16/n8/d0.15", "d") == 0.15
+    assert aggregate.parse_token("miconic/s1-0", "x") is None
+
+
+def test_a_figure_is_drawn_against_the_parameter_that_moved():
+    """A density sweep charted against a fixed agent count is one x position.
+
+    Every mark then sits on top of the others and each one is a median over
+    the densities the suite actually varied, under an axis naming the wrong
+    variable.
+    """
+    density = [
+        row(f"random_obstacles/20x20/n16/d{d}", "cbs")
+        for d in ("0.05", "0.1", "0.15")
+    ]
+    assert aggregate.varying_x_key(density) == "density"
+    assert aggregate.pooled_x_keys(density, "density") == []
+
+    agents = [
+        row(f"random_obstacles/16x16/n{n}/d0.15", "cbs")
+        for n in (4, 8, 16)
+    ]
+    assert aggregate.varying_x_key(agents) == "n_agents"
+
+    # Two grid sizes at every agent count: a real pooling, and one the caption
+    # has to name.
+    both = agents + [
+        row(f"random_obstacles/24x24/n{n}/d0.15", "cbs")
+        for n in (4, 8, 16)
+    ]
+    assert aggregate.varying_x_key(both) == "n_agents"
+    assert aggregate.pooled_x_keys(both, "n_agents") == ["grid"]
+
+    # A suite that sweeps nothing plottable says so rather than guessing.
+    assert aggregate.varying_x_key([row("miconic/s1-0", "astar")]) is None

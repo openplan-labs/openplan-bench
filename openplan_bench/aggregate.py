@@ -20,6 +20,7 @@ load-bearing:
 
 from __future__ import annotations
 
+import re
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -260,9 +261,73 @@ def x_key_token(x_key: str) -> str:
     return {"n_agents": "n", "grid": "x", "density": "d"}.get(x_key, "n")
 
 
+#: How each sweep axis is named to a reader.
+X_LABELS = {
+    "n_agents": "agent count",
+    "grid": "grid size",
+    "density": "obstacle density",
+}
+
+
+def x_key_values(rows: list[RunRecord], x_key: str) -> set[float]:
+    """Every distinct value of ``x_key`` present in these rows' instance ids."""
+    token = x_key_token(x_key)
+    values = {parse_token(row.instance, token) for row in rows}
+    values.discard(None)
+    return {float(value) for value in values}
+
+
+def varying_x_key(rows: list[RunRecord]) -> str | None:
+    """The instance parameter this suite actually sweeps, or ``None``.
+
+    Plotting runtime against a parameter the suite held constant collapses
+    every instance onto one x position and silently takes a median across
+    whatever the suite *did* vary. ``mapf-density`` sweeps obstacle density at
+    a fixed sixteen agents; charted against agent count it produced one point
+    per solver, each of them a median over six different densities, under an
+    axis labelled "agents". A figure has to be drawn against the variable that
+    moved.
+    """
+    for key in ("n_agents", "density", "grid"):
+        if len(x_key_values(rows, key)) > 1:
+            return key
+    return None
+
+
+def pooled_x_keys(rows: list[RunRecord], x_key: str) -> list[str]:
+    """Other parameters that also vary, and so are pooled at each ``x``.
+
+    ``mapf-scaling`` runs both 16x16 and 24x24 grids at every agent count, so
+    each point on its curve is a median over two grid sizes. That is a
+    defensible aggregation and an indefensible thing to leave uncaptioned.
+    """
+    return [
+        key
+        for key in X_LABELS
+        if key != x_key and len(x_key_values(rows, key)) > 1
+    ]
+
+
+#: A grid dimension in an instance id: ``16x16``, ``24x24``.
+_GRID = re.compile(r"^(\d+)x(\d+)$")
+
+
 def parse_token(instance_id: str, token: str) -> float | None:
-    """Pull ``n16`` / ``d0.15`` out of a generated instance id."""
+    """Pull ``n16`` / ``d0.15`` / ``16x16`` out of a generated instance id.
+
+    The grid is the odd one out: its dimension leads (``16x16``), so the
+    prefix rule that finds ``n16`` and ``d0.15`` never matched it and the grid
+    axis silently returned nothing for every instance. The visible consequence
+    was that nothing could tell whether a suite varied its grid size, so
+    ``mapf-scaling`` pooled 16x16 and 24x24 at every agent count without
+    saying so.
+    """
     for part in instance_id.split("/"):
+        if token == "x":
+            match = _GRID.match(part)
+            if match:
+                return float(match.group(1))
+            continue
         if part.startswith(token) and part != token:
             try:
                 return float(part[len(token) :])

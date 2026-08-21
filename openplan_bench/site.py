@@ -187,7 +187,7 @@ class SuiteResults:
             for timeout_s, memory_mb in pairs
         ]
         if len(parts) == 1:
-            return f"Per-instance budget: {parts[0]}. Enforced on every row below."
+            return f"Per-instance budget: {parts[0]}."
         return (
             "Per-instance budget differs across this suite's groups: "
             + "; ".join(parts)
@@ -295,7 +295,7 @@ def _leaderboard_table(summaries, budget: str) -> str:
     if not summaries:
         return '<p class="empty">No configuration produced a row.</p>'
     head = (
-        f"<caption>{esc(budget)}</caption>"
+        f"<caption>{esc(budget)} Enforced on every row in this table.</caption>"
         "<thead><tr>"
         "<th>Configuration</th><th>Family</th>"
         '<th class="num">Coverage</th><th class="num">Solved</th>'
@@ -370,7 +370,7 @@ def _cell_table(cells, budget: str) -> str:
     if not cells:
         return '<p class="empty">No run was recorded for this suite.</p>'
     head = (
-        f"<caption>{esc(budget)}</caption>"
+        f"<caption>{esc(budget)} Enforced on every row in this table.</caption>"
         "<thead><tr>"
         "<th>Instance</th><th>Configuration</th><th>Outcome</th>"
         '<th class="num">Median time</th><th class="num">Min</th><th class="num">Max</th>'
@@ -439,6 +439,40 @@ def _controls(outcomes: list[str], scope_id: str) -> str:
     <span class="count"></span>
   </div>
 """
+
+
+def _scaling_caption(result: SuiteResults) -> str:
+    """Describe the scaling figure in terms of the axis it was actually drawn on.
+
+    The caption used to name the agent count unconditionally, which was wrong
+    for a suite that sweeps obstacle density at a fixed agent count.
+    """
+    x_key = aggregate.varying_x_key(result.rows)
+    pooled = aggregate.pooled_x_keys(result.rows, x_key or "")
+    if x_key is None:
+        axis = "instance size"
+        trend = (
+            "This suite varies no instance parameter the figure knows how to "
+            "plot, so the marks share one x position and are not a trend. "
+        )
+    else:
+        axis = aggregate.X_LABELS[x_key]
+        trend = ""
+    pooled_note = (
+        "Each point is the median over the cells at that x, which here also "
+        + " and ".join(f"differ in {aggregate.X_LABELS[key]}" for key in pooled)
+        + ". "
+        if pooled
+        else ""
+    )
+    return (
+        f"Median wall time against {axis}; the band is the observed min–max "
+        f"over seeds. {trend}{pooled_note}Every curve is drawn only over the "
+        "values that solver solved on every seed, so two curves of different "
+        "length cover different instance sets and their heights are not a "
+        "like-for-like comparison. Hollow triangles mark cells that hit the "
+        f"budget. {result.budget}"
+    )
 
 
 def _sample_note(cells) -> str:
@@ -517,15 +551,7 @@ def _suite_section(result: SuiteResults, index: int) -> str:
                 "never attempted because a backend was absent.",
                 result.name,
             ),
-            _figure(
-                "scaling",
-                "Median wall time against agent count; the band is the observed "
-                "min–max over seeds, and every curve is drawn only over the "
-                "agent counts that solver solved on every seed, so two curves "
-                "of different length cover different instance sets. Hollow "
-                f"triangles mark cells that hit the budget. {result.budget}",
-                result.name,
-            )
+            _figure("scaling", _scaling_caption(result), result.name)
             if any(r.family == "mapf" for r in rows)
             else "",
         ]

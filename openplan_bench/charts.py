@@ -273,6 +273,10 @@ def scaling_plot(
             ax.set_yscale("log")
             ax.set_xlabel(xlabel)
             ax.set_ylabel("median wall time (s), band = min–max over seeds")
+            if len({x for xs, *_ in curves.values() for x in xs}) < 2:
+                # One x position is not a curve. Say so on the figure rather
+                # than letting five lone markers read as a trend.
+                ax.set_xlabel(f"{xlabel} (held constant — single point, no trend)")
             handles, labels = ax.get_legend_handles_labels()
             if any(points for points in timeouts.values()):
                 handles.append(
@@ -289,7 +293,7 @@ def scaling_plot(
                 )
                 labels.append("did not finish (at budget)")
             ax.legend(handles, labels, loc="upper left")
-        ax.set_title("Scaling")
+        ax.set_title(f"Runtime against {xlabel}")
         return _save(fig, out_dir, stem, dark)
 
 
@@ -403,8 +407,12 @@ def render_suite(rows, out_dir: str | Path) -> list[Path]:
     series = aggregate.cactus(rows)
     summaries = aggregate.summarize(rows)
     counts = aggregate.outcome_counts(rows)
-    curves = aggregate.scaling(rows, "n_agents")
-    caps = aggregate.timeout_points(rows, "n_agents")
+    # Draw against whatever the suite actually swept. Hardcoding agent count
+    # gave mapf-density — a density sweep at a fixed sixteen agents — a chart
+    # with one x position holding a median over six densities.
+    x_key = aggregate.varying_x_key(rows) or "n_agents"
+    curves = aggregate.scaling(rows, x_key)
+    caps = aggregate.timeout_points(rows, x_key)
     # The budget the rows were actually run under, not the one the suite file
     # asks for. Where a suite gives its groups different budgets, the largest
     # is the only cap that holds for the whole figure.
@@ -417,5 +425,13 @@ def render_suite(rows, out_dir: str | Path) -> list[Path]:
         written.append(coverage_bars(summaries, out_dir, dark))
         written.append(outcome_bars(counts, out_dir, dark))
         if curves or caps:
-            written.append(scaling_plot(curves, caps, out_dir, dark))
+            written.append(
+                scaling_plot(
+                    curves,
+                    caps,
+                    out_dir,
+                    dark,
+                    xlabel=aggregate.X_LABELS.get(x_key, x_key),
+                )
+            )
     return written
