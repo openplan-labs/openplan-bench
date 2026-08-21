@@ -5,6 +5,8 @@
 
 # openplan-bench
 
+[![CI](https://github.com/openplan-labs/openplan-bench/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/openplan-labs/openplan-bench/actions/workflows/ci.yml)
+
 One harness, one problem set, one results schema for every planner in
 [OpenPlan Labs](https://github.com/openplan-labs). It runs
 [`jupyddl`](https://github.com/openplan-labs/PythonPDDL) over classical PDDL
