@@ -11,6 +11,46 @@ files stay readable.
 
 ## [Unreleased]
 
+Corrections to what the published page claims about its own numbers. No
+committed measurement changed; `results/**` is untouched.
+
+### Changed
+
+- **`SCHEMA_VERSION` 2 → 3.** `timestamp_utc` is now stamped as each row is
+  produced. It used to be collected once per suite run and copied onto every
+  row, so a results file advertised per-row provenance and carried one
+  start-of-run stamp repeated N times. Files already committed keep their
+  recorded 2; reading a 2 means reading a per-run stamp, and both the schema
+  docstring and the methodology page now say so.
+- **`wall_time_s` is a measurement on every path.** The outer kill wrote the
+  budget into it while the planner's own limit wrote the elapsed time, so the
+  column held one of two different quantities depending on which stopped the
+  run. It is now the measured elapsed on both. The budget was never missing —
+  it is `timeout_s`, its own column.
+- **Every table on the dashboard states its per-instance budget**, in a
+  `<caption>`, read off the rows rather than off the suite file. Coverage
+  without a stated budget is not a number. The methodology page repeats all
+  five budgets in one table and the cactus plot draws the cap.
+- **MAPF figures are drawn against the parameter their suite swept.**
+  `mapf-density` sweeps obstacle density at a fixed sixteen agents and was
+  being plotted against agent count, which put every solver on one x position
+  and made each mark a median over six densities.
+
+### Fixed
+
+- `parse_token` could not read a grid size: `16x16` leads with its dimension
+  and the prefix rule that finds `n16` and `d0.15` never matched it. With it
+  working, `mapf-scaling` is visibly pooling two grid sizes at each agent
+  count, which its caption now names.
+- The reproduce page cloned a URL without `.git`, put the corpus at
+  `../pddl-examples` where the suite files resolve `corpus_root` to
+  `corpus/pddl-examples`, and read a hardcoded CSV date that was never run.
+  The example path now comes from the committed results.
+- Captions for the columns computed over each configuration's own solved set —
+  median time, total time and node expansions — which are not comparable
+  across rows, including when sorted. Suites that run one seed and one
+  repetition say that their median, min and max are one sample.
+
 ## [0.1.0] — 2026-08-21
 
 First release. The harness, five suites, the dashboard, and a real first run.
@@ -19,8 +59,8 @@ First release. The harness, five suites, the dashboard, and a real first run.
 
 - **The results schema.** `RunRecord` — one wide, self-describing row per
   measured run, carrying the measurement and the conditions it was taken under:
-  CPU model, platform, Python version, package versions, timestamp, seed and
-  the harness git SHA. A closed outcome vocabulary (`solved`, `unsolved`,
+  CPU model, platform, Python version, package versions, seed, budget and the
+  harness git SHA. A closed outcome vocabulary (`solved`, `unsolved`,
   `timeout`, `memory`, `error`, `skipped`, `not-installed`) with no way to
   express "this run happened but is not in the file".
 - **The adapter interface.** `available()` / `instances()` / `run()`, one

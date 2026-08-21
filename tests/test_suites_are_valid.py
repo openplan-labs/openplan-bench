@@ -57,14 +57,36 @@ def test_seeded_suites_use_at_least_three_seeds(path):
         )
 
 
+#: Classical groups that take exactly one sample per cell, so their median,
+#: minimum and maximum are one number printed three times. Both are recorded
+#: under "Known limitations" in the README and both put a single-sample note
+#: above their table on the dashboard.
+SINGLE_SAMPLE_CLASSICAL = {"classical-coverage", "ci-weekly"}
+
+
 @pytest.mark.parametrize("path", SUITES, ids=lambda p: p.stem)
-def test_classical_suites_repeat_their_timings(path):
+def test_classical_timing_samples_are_declared(path):
+    """A classical group takes seeds x repetitions samples of each cell.
+
+    This used to assert ``samples >= 1``, which every possible suite satisfies
+    — a test whose name claimed a repetition rule it did not check. What is
+    worth pinning is *which* suites take a single sample, because that is the
+    thing the dashboard has to caption and the README has to list. Adding a
+    third quietly should fail here.
+    """
     suite = load_suite(path)
     for group in suite.groups:
         if get_adapter(group.adapter).family != "classical":
             continue
         samples = len(suite.seeds_for(group)) * suite.repetitions_for(group)
         assert samples >= 1
+        if samples == 1:
+            assert suite.name in SINGLE_SAMPLE_CLASSICAL, (
+                f"{path.name}: a classical group takes one sample per cell, so "
+                "its median is not a median. Either raise 'repetitions', or add "
+                "the suite to SINGLE_SAMPLE_CLASSICAL and to the README's known "
+                "limitations."
+            )
 
 
 def test_the_ci_suite_is_labelled_runner_grade():

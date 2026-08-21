@@ -39,8 +39,15 @@ Rules the tests enforce:
 - MAPF groups use at least three seeds. A median over two numbers is a mean.
 - No budget above two minutes — a suite nobody can run in CI is a suite that
   rots.
-- Classical suites may use one seed (planning here is deterministic) but should
-  set `repetitions` so the timing has a median.
+- Classical suites may use one seed, since planning here is deterministic, but
+  then `repetitions` is the only thing giving the timing more than one sample.
+  A classical group with `seeds x repetitions == 1` fails the tests unless the
+  suite is named in `SINGLE_SAMPLE_CLASSICAL` and listed under known
+  limitations in the README — a median over one number is that number, and the
+  dashboard has to say so above the table.
+- Every suite must set `timeout_s` and `memory_limit_mb`. They are stamped onto
+  every row and the dashboard reads the published budget off the rows, so a
+  table can never be printed without the conditions it was measured under.
 
 ## 3. A correction
 
