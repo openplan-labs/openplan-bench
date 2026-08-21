@@ -132,6 +132,14 @@ def test_every_suite_table_states_its_budget(tmp_path):
     assert "20 s" in page
 
 
+def test_a_single_sample_is_not_presented_as_a_range(tmp_path):
+    """One seed and one repetition gives one number, not a min-max band."""
+    site.build(_results(tmp_path), tmp_path / "docs", render_figures=False)
+    index = (tmp_path / "docs" / "index.html").read_text().replace("\n", " ")
+    assert "Single-sample timings" in index
+    assert "Every cell in this suite is" in " ".join(index.split())
+
+
 def test_the_timeout_column_says_what_it_holds(tmp_path):
     """The docs and the data have to agree on what wall_time_s is."""
     site.build(_results(tmp_path), tmp_path / "docs", render_figures=False)

@@ -28,9 +28,18 @@ A benchmark that reports only its successes is an advertisement. This one
 records **every run it was asked to make**. That is the single design decision
 everything else follows from:
 
-- A run that exhausts its budget is a `timeout` row carrying the budget — never
-  a missing row, and never an extrapolation of how long it "would have" taken.
-  A timeout is not a proof of unsolvability.
+- A run that exhausts its budget is a `timeout` row, never a missing row. It
+  carries **both** numbers, in separate columns, because they are not the same
+  one: `timeout_s` is the budget the run was given, and `wall_time_s` is the
+  measured elapsed time at which it was stopped — a little past the budget,
+  since a planner notices its own limit and unwinds. Neither is an
+  extrapolation of how long a solution would have taken, and a timeout is not a
+  proof of unsolvability.
+- **Every table states the budget it was measured under.** Coverage without one
+  is not a number: "solved 9 of 18" says nothing until you know whether the
+  planner had twenty seconds or twenty minutes. The dashboard reads the budget
+  off the rows themselves, not off the suite file, so a caption cannot drift
+  from the measurement it describes.
 - A planner that raises, or cannot parse a domain, is an `error` row with the
   message. "Cannot read this domain" is a real limitation and belongs in the
   table.
@@ -63,6 +72,30 @@ And what this is **not**:
 
 The [methodology page](https://openplan-labs.github.io/openplan-bench/methodology.html)
 is the long version, and is worth reading before quoting a number.
+
+### Known limitations of the currently published results
+
+These are properties of the committed data, not of the harness. Each is fixed
+by a re-run, and none of them is worth faking in the meantime — the dashboard
+states each one where the affected number appears.
+
+- **Every committed results file is `schema_version` 2, so its `timestamp_utc`
+  is one stamp for the whole suite run.** The harness stamps per row from
+  schema 3, but no schema-3 file exists yet: that needs a fresh run of each
+  suite. The scheduled weekly job produces the first one for `ci-weekly`; the
+  four laptop-measured suites need `openplan_bench run` on each. Until then the
+  dashboard says "run stamped …", not a per-row time.
+- **`classical-coverage` runs one seed and one repetition, and the classical
+  half of `ci-weekly` does the same.** Each cell is therefore a single
+  measurement, and its Median, Min and Max columns are that one number three
+  times rather than an observed range. Coverage, node counts, plan cost and
+  validity are unaffected — those are deterministic. Getting a real spread
+  means re-running those two suites with `repetitions: 3`, which is the knob
+  that matters for a deterministic planner; more seeds would re-measure the
+  same search. `classical-smoke` already does this.
+- **Each suite was measured on one machine, once.** There is no cross-machine
+  replication and no run-to-run variance estimate for anything except the
+  `runner-grade` suite, which has one point of comparison and warns about it.
 
 ## Install and run
 
@@ -107,13 +140,16 @@ for how long. Keeping the experiment in one reviewable file is what makes
 typo that silently does nothing is how you publish a table measuring something
 other than what its caption says.
 
-| Suite | Family | What it is for |
-| :--- | :--- | :--- |
-| `classical-smoke` | PDDL | Everything finishes in milliseconds. Run it after touching the harness. |
-| `classical-coverage` | PDDL | Has a real difficulty gradient — the optimal planners do not finish it. |
-| `mapf-scaling` | MAPF | Runtime against agent count, 4 to 32, five seeds. |
-| `mapf-density` | MAPF | Fixed agents, obstacle density 5% to 30% — where CBS actually breaks. |
-| `ci-weekly` | both | Runner-grade. Time-boxed for a shared runner; watches for regressions. |
+Budgets are per instance and are quoted in every table on the dashboard, since
+a coverage column means nothing without one:
+
+| Suite | Family | Budget | What it is for |
+| :--- | :--- | :--- | :--- |
+| `classical-smoke` | PDDL | 30 s · 3072 MiB | Everything finishes in milliseconds. Run it after touching the harness. |
+| `classical-coverage` | PDDL | 20 s · 3072 MiB | Has a real difficulty gradient — the optimal planners do not finish it. |
+| `mapf-scaling` | MAPF | 20 s · 3072 MiB | Runtime against agent count, 4 to 32, five seeds. |
+| `mapf-density` | MAPF | 20 s · 3072 MiB | Fixed agents, obstacle density 5% to 30% — where CBS actually breaks. |
+| `ci-weekly` | both | 15 s · 2048 MiB | Runner-grade. Time-boxed for a shared runner; watches for regressions. |
 
 ```yaml
 name: classical-smoke
@@ -215,19 +251,25 @@ error and memory-guard paths are covered without any planner installed.
 ## Results
 
 ```
-results/<suite>/2026-08-21.csv      one row per measured run, never overwritten
+results/<suite>/2026-08-20.csv      one row per measured run, never overwritten
 results/<suite>/latest.json         the same rows plus the suite header
 ```
 
 Rows are wide on purpose. Each carries the planner, instance, seed, outcome and
-metrics **and** the CPU model, platform, Python version, package versions,
-timestamp and harness git SHA that produced it. That is redundant within one
-file and essential the moment two files from different machines are
-concatenated.
+metrics **and** the budget it ran under, the CPU model, platform, Python
+version, package versions and harness git SHA that produced it. That is
+redundant within one file and essential the moment two files from different
+machines are concatenated.
+
+`timestamp_utc` is the one field worth stating exactly. From `schema_version` 3
+it is stamped as each row is produced. In a `schema_version` 2 file — which is
+every file currently committed — it is a single stamp taken when the suite run
+started, copied onto every row. Reading one of those as a per-row clock will
+give you the wrong answer.
 
 ```python
 from openplan_bench.records import read_csv
-rows = read_csv("results/classical-coverage/2026-08-21.csv")
+rows = read_csv("results/classical-coverage/2026-08-20.csv")
 print(sum(r.outcome == "timeout" for r in rows), "timeouts")
 ```
 

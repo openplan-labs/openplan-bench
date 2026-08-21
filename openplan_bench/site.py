@@ -441,6 +441,34 @@ def _controls(outcomes: list[str], scope_id: str) -> str:
 """
 
 
+def _sample_note(cells) -> str:
+    """Say so where a cell's Median, Min and Max are one measurement repeated.
+
+    ``seeds: [0]`` with ``repetitions: 1`` gives a cell exactly one sample, and
+    the aggregation dutifully reports its median, its minimum and its maximum —
+    the same number three times. Printed without a note that reads as an
+    observed range, which is a spread the run never measured.
+    """
+    sizes = sorted(cell.n_measured for cell in cells if cell.n_measured)
+    if not sizes or sizes[-1] == 0:
+        return ""
+    single = sum(1 for size in sizes if size == 1)
+    if not single:
+        return ""
+    scope = (
+        "Every cell in this suite is"
+        if single == len(sizes)
+        else f"{single} of the {len(sizes)} cells in this suite are"
+    )
+    return f"""  <div class="note"><p><strong>Single-sample timings.</strong>
+    {scope} one measurement: one seed, one repetition. Median, Min and Max are
+    then the same number three times &mdash; a sample, not an observed range.
+    Node counts, cost and validity are unaffected, being deterministic; the
+    seconds should not be quoted with a spread until the suite is re-run with
+    more seeds.</p></div>
+"""
+
+
 def _suite_section(result: SuiteResults, index: int) -> str:
     rows = result.rows
     summaries = aggregate.summarize(rows)
@@ -465,6 +493,7 @@ def _suite_section(result: SuiteResults, index: int) -> str:
         if result.runner_grade
         else ""
     )
+    sample_note = _sample_note(cells)
 
     figures = "".join(
         [
@@ -516,7 +545,7 @@ def _suite_section(result: SuiteResults, index: int) -> str:
      <strong>{esc(result.budget)}</strong><br>
      {esc(result.stamped)} &middot; published {esc(result.generated)} &middot;
      results: {history_links or "—"}</p>
-{runner_note}
+{runner_note}{sample_note}
   <div class="stats">
     <div class="stat"><span class="k">Rows recorded</span><span class="v">{total}</span></div>
     <div class="stat"><span class="k">Runs attempted</span><span class="v">{attempted}</span></div>
@@ -731,6 +760,11 @@ say so.</p>
     the measured region for classical planning. That is honest for a user
     waiting on a CLI and unfair as an algorithmic comparison; node expansions
     are the metric to use for the latter.</li>
+  <li><strong>No replication.</strong> Each suite was measured on one machine,
+    once. Where a suite also runs one seed and one repetition, its per-cell
+    Median, Min and Max are one sample printed three times and the suite says
+    so above its own table. Coverage, node counts, cost and validity do not
+    depend on this; the seconds do.</li>
   <li><strong>No memory profiling.</strong> Peak RSS is recorded per run as a
     coarse figure, not measured carefully.</li>
   <li><strong>No GPU results unless a suite says so.</strong> The CUDA arm is

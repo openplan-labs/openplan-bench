@@ -150,6 +150,11 @@ say so.</p>
     the measured region for classical planning. That is honest for a user
     waiting on a CLI and unfair as an algorithmic comparison; node expansions
     are the metric to use for the latter.</li>
+  <li><strong>No replication.</strong> Each suite was measured on one machine,
+    once. Where a suite also runs one seed and one repetition, its per-cell
+    Median, Min and Max are one sample printed three times and the suite says
+    so above its own table. Coverage, node counts, cost and validity do not
+    depend on this; the seconds do.</li>
   <li><strong>No memory profiling.</strong> Peak RSS is recorded per run as a
     coarse figure, not measured carefully.</li>
   <li><strong>No GPU results unless a suite says so.</strong> The CUDA arm is
@@ -164,7 +169,7 @@ say so.</p>
       <code>results/</code> and the suite file that produced it.</p>
     <p>Colour, type and figures follow
       <a href="https://github.com/openplan-labs/branding">openplan-labs/branding</a>
-      (Frontier). Built 2026-08-21T15:37:19+00:00.</p>
+      (Frontier). Built 2026-08-21T15:40:42+00:00.</p>
   </div>
 </footer>
 <script src="assets/site.js"></script>
